@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { authApi } from '@/lib/api';
+// Mock register - always succeeds
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,12 +39,8 @@ export default function RegisterPage() {
         setIsLoading(true);
         setError(null);
         try {
-            await authApi.register({
-                email: data.email,
-                password: data.password,
-                name: data.name,
-                phone: data.phone || undefined,
-            });
+            // Mock register - simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 500));
             router.push('/login?registered=true');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';

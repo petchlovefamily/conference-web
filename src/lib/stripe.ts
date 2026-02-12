@@ -1,14 +1,9 @@
-'use client';
+// Stripe integration removed - all payments are mocked
+// When new API is ready, reinitialize Stripe here
 
-import { loadStripe, Stripe } from '@stripe/stripe-js';
-
-// Initialize Stripe with publishable key
-const stripePromise = loadStripe(
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
-);
-
-export function getStripePromise(): Promise<Stripe | null> {
-    return stripePromise;
+export function getStripePromise() {
+    // Return null - Stripe is not initialized in mock mode
+    return Promise.resolve(null);
 }
 
-export { stripePromise };
+export const stripePromise = Promise.resolve(null);

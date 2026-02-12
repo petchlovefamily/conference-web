@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { authApi } from '@/lib/api';
+// Mock login - accepts any credentials
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,21 +39,21 @@ export default function LoginPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await authApi.login(data.email, data.password);
+            // Mock login - simulate API delay and return mock user
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const mockToken = 'mock-token-' + Date.now();
+            const mockUser = {
+                id: 1,
+                name: data.email.split('@')[0],
+                email: data.email,
+                role: 'member',
+            };
 
             // ใช้ AuthContext login function (เก็บใน localStorage ของ Frontend)
-            login(response.token, response.user);
+            login(mockToken, mockUser);
 
-            // Redirect ตาม role
-            if (response.user.role === 'admin' || response.user.role === 'staff') {
-                // Admin/Staff → ไป Backoffice พร้อม token (เพราะ localStorage ไม่ share ข้าม domain)
-                const token = response.token;
-                const user = encodeURIComponent(JSON.stringify(response.user));
-                window.location.href = `${BACKOFFICE_URL}/auth-callback?token=${token}&user=${user}`;
-            } else {
-                // User ปกติ → อยู่ที่ Frontend
-                router.push('/events');
-            }
+            // Mock: always redirect to events (no backoffice)
+            router.push('/events');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
             setError(errorMessage);

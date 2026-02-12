@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { eventsApi, EventWithTickets, ApiSession, ApiSpeaker } from '@/lib/api';
+import { EventWithTickets, ApiSession, ApiSpeaker } from '@/lib/api';
+import { getEvents, getEventById } from '@/lib/services';
 import { Calendar, Clock, MapPin, User, Search, Filter, ChevronRight, AlertCircle } from 'lucide-react';
 import { format, parseISO, isSameDay, compareAsc } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -30,13 +31,13 @@ export default function AgendaPage() {
     const fetchInitialData = async () => {
         try {
             setLoading(true);
-            // 1. Fetch list of events
-            const response = await eventsApi.list();
-            if (response.success && response.data.length > 0) {
+            // 1. Fetch list of events (mock)
+            const allEvents = await getEvents();
+            if (allEvents.length > 0) {
                 // Filter for published events and sort by date descending
-                const publishedEvents = response.data
-                    .filter(e => e.status === 'published')
-                    .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+                const publishedEvents = allEvents
+                    .filter((e: any) => e.status === 'published' || !e.status)
+                    .sort((a: any, b: any) => new Date(b.startDate || b.date || '').getTime() - new Date(a.startDate || a.date || '').getTime());
 
                 if (publishedEvents.length === 0) {
                     setError('No upcoming events found.');
@@ -44,10 +45,11 @@ export default function AgendaPage() {
                     return;
                 }
 
-                setEvents(publishedEvents as EventWithTickets[]); // Cast for now, list returns Event[]
+                setEvents(publishedEvents as unknown as EventWithTickets[]);
 
                 // 2. Select the most relevant event (first one) and fetch details
-                await selectEvent(publishedEvents[0].id);
+                const firstEvent = publishedEvents[0] as any;
+                await selectEvent(firstEvent.id);
             } else {
                 setError('No events found.');
             }
@@ -62,9 +64,9 @@ export default function AgendaPage() {
     const selectEvent = async (eventId: number) => {
         try {
             setLoading(true);
-            const res = await eventsApi.get(eventId);
-            if (res.success) {
-                const eventData = res.data;
+            // Mock: fetch event by ID
+            const eventData = await getEventById(eventId.toString()) as unknown as EventWithTickets;
+            if (eventData) {
                 setSelectedEvent(eventData);
 
                 // Process sessions and speakers
@@ -210,8 +212,8 @@ export default function AgendaPage() {
                                                 key={day.date.toISOString()}
                                                 onClick={() => setActiveDay(day.date)}
                                                 className={`w-full text-left px-4 py-3 rounded-lg transition-all flex justify-between items-center ${activeDay && isSameDay(activeDay, day.date)
-                                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                                        : 'hover:bg-white/5 text-gray-400 hover:text-white'
+                                                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                    : 'hover:bg-white/5 text-gray-400 hover:text-white'
                                                     }`}
                                             >
                                                 <span>{day.label}</span>

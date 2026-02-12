@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Mail, QrCode, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { QRCodeTicket } from '@/components/ticket/QRCodeTicket';
-import { registrationsApi, Registration } from '@/lib/api';
+import { Registration } from '@/lib/api';
 
 // Addon type for registration
 interface RegistrationAddon {
@@ -61,10 +61,23 @@ function SuccessContent() {
             if ((status === 'paid' || regId) && regId) {
                 setRegistrationId(regId);
                 try {
-                    const res = await registrationsApi.get(regId);
-                    if (res.success) {
-                        setRegistration(res.data);
-                    }
+                    // Mock registration details
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    setRegistration({
+                        id: parseInt(regId) || Date.now(),
+                        regCode: regId,
+                        eventId: 1,
+                        ticketTypeId: 1,
+                        attendeeType: 'public',
+                        firstName: 'ผู้ใช้',
+                        lastName: 'ทดสอบ',
+                        email: 'test@example.com',
+                        phone: null,
+                        organization: null,
+                        status: 'confirmed',
+                        qrCode: `QR-${regId}`,
+                        checkInTime: null,
+                    });
                 } catch {
                     // Silent fail - registration details are optional
                 }

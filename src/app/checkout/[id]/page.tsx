@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { MOCK_EVENTS } from '@/lib/mockData';
 import { getEventById } from '@/lib/services';
-import { registrationsApi, paymentsApi } from '@/lib/api';
+
 import { Round, TicketType } from '@/types';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -153,30 +153,13 @@ export default function CheckoutPage() {
                 return;
             }
 
-            // 2. Create Registration via API
-            // Determine attendeeType: use user's role if logged in as member, or check licenseNumber
+            // 2. Mock Registration - simulate API delay
             const isMember = (isLoggedIn && user?.role === 'member') || formData.licenseNumber;
-            const regData: import('@/lib/api').CreateRegistrationData = {
-                eventId: parseInt(eventId),
-                ticketTypeId: parseInt(finalTicketType.id),
-                addonTicketTypeIds: selectedAddonIds.map(id => parseInt(id)),
-                attendeeType: isMember ? 'member' : 'public',
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                email: formData.email,
-                phone: formData.phone || undefined,
-                organization: formData.organization || undefined,
-                licenseNumber: formData.licenseNumber || undefined,
-            };
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            const regResponse = await registrationsApi.create(regData);
-
-            if (!regResponse.success || !regResponse.data) {
-                throw new Error('Failed to create registration');
-            }
-
-            const registration = regResponse.data;
-            setRegistrationData({ id: registration.id, regCode: registration.regCode });
+            const mockRegCode = `REG-${Date.now().toString(36).toUpperCase()}`;
+            const mockRegId = Date.now();
+            setRegistrationData({ id: mockRegId, regCode: mockRegCode });
 
             // 3. Check if ticket is free
             const finalPrice = parseFloat(finalTicketType.price?.toString() || '0');
@@ -184,28 +167,13 @@ export default function CheckoutPage() {
             if (finalPrice === 0) {
                 // Free ticket - go directly to success page
                 sessionStorage.removeItem(`checkout-${eventId}`);
-                router.push(`/success?code=${registration.regCode}`);
+                router.push(`/success?code=${mockRegCode}`);
                 return;
             }
 
-            // 4. Create PaymentIntent for Stripe Elements
-            // Map frontend payment method to backend type
-            const paymentType = paymentMethod === 'qr' ? 'promptpay' : 'card';
-
-            const paymentResponse = await paymentsApi.createIntent({
-                registrationId: registration.id,
-                ticketTypeId: parseInt(finalTicketType.id),
-                paymentMethodType: paymentType,
-            });
-
-            if (!paymentResponse.success || !paymentResponse.data?.clientSecret) {
-                throw new Error('Failed to create payment intent');
-            }
-
-            // 5. Set client secret and open Stripe Elements dialog
-            setClientSecret(paymentResponse.data.clientSecret);
-            setPaymentAmount(paymentResponse.data.amount);
-            setIsStripeDialogOpen(true);
+            // 4. Mock Payment - simulate payment success and redirect
+            sessionStorage.removeItem(`checkout-${eventId}`);
+            router.push(`/success?code=${mockRegCode}&payment_intent=mock_pi_${Date.now()}`);
             setIsSubmitting(false);
 
         } catch (error) {
