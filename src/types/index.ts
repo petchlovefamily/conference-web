@@ -1,0 +1,182 @@
+// ===========================================
+// TypeScript Types for Backend API
+// Backend: ngrok URL
+// ===========================================
+
+// ========== EVENT TYPES ==========
+
+export interface Event {
+    id: string;
+    code: string;
+    name: string;
+    title?: string; // API compatibility - mapped from eventName
+    description: string;
+    eventType: 'single_room' | 'multi_session' | 'single' | 'conference';
+    status: 'draft' | 'published' | 'cancelled';
+    venue: string;
+    capacity: number;
+    cpeCredits: string | number;
+    startDate: string;
+    endDate: string;
+    registrationOpens: string;
+    registrationCloses: string;
+    ticketTypes?: TicketType[];
+    sessions?: Session[];
+    // UI compatibility fields
+    coverImage?: string;
+    venueImage?: string;
+    image?: string;
+    speakers?: Speaker[];
+    images?: EventImage[];
+    attachments?: EventAttachment[];
+    // Legacy fields for existing pages
+    rounds?: Round[];
+    price?: number;
+    category?: string;
+    schedule?: ScheduleItem[];
+    createdAt?: string;
+    location?: string;
+    date?: string;
+    time?: string;
+    registeredCount?: number;
+}
+
+export interface TicketType {
+    id: string;
+    name: string;
+    ticketCategory: 'primary' | 'addon';
+    category?: 'early_bird' | 'member' | 'public' | 'vip';
+    price: number;
+    quota?: number;
+    soldCount?: number;
+    salesStart?: string;
+    salesEnd?: string;
+    // API compatibility
+    description?: string;
+    available?: number;
+    maxPerOrder?: number;
+    benefits?: string[];
+}
+
+export interface Round {
+    id: string;
+    date: string;
+    time: string;
+    location: string;
+    mapUrl?: string;
+    capacity: number;
+    registered: number;
+}
+
+export interface ScheduleItem {
+    time: string;
+    title: string;
+    speaker?: string;
+}
+
+export interface Session {
+    id: string;
+    sessionCode: string;
+    sessionName: string;
+    description?: string;
+    room?: string;
+    startTime: string;
+    endTime: string;
+    speakers?: string;
+    maxCapacity: number;
+}
+
+export interface Speaker {
+    id: string;
+    name: string;
+    title: string;
+    organization: string;
+    imageUrl?: string;
+}
+
+export interface EventImage {
+    id: number;
+    eventId: number;
+    imageUrl: string;
+    caption?: string;
+    imageType: 'cover' | 'venue';
+    sortOrder: number;
+}
+
+export interface EventAttachment {
+    id: number;
+    eventId: number;
+    fileName: string;
+    fileUrl: string;
+    fileType?: string;
+    fileSize?: number;
+    description?: string;
+}
+
+// ========== REGISTRATION TYPES ==========
+
+export interface RegistrationRequest {
+    eventId: string;
+    ticketTypeId?: string;
+    email: string;
+    phone?: string;
+    nameTh?: string;
+    nameEn?: string;
+    licenseNumber?: string;
+    promoCode?: string;
+    // API compatibility
+    firstName?: string;
+    lastName?: string;
+    organization?: string;
+    attendeeType?: string;
+}
+
+export interface RegistrationResponse {
+    registration: {
+        id: string;
+        registrationNumber: string;
+        qrCode: string;
+        amount: number;
+    };
+}
+
+// ========== MEMBER VERIFICATION ==========
+
+export interface MemberVerifyResponse {
+    valid: boolean;
+    member?: {
+        id: string;
+        name: string;
+        licenseNumber: string;
+    };
+}
+
+// ========== PAYMENT TYPES ==========
+
+export interface CheckoutResponse {
+    checkoutUrl: string;
+    sessionId: string;
+}
+
+export interface PaymentVerifyResponse {
+    status: 'paid' | 'unpaid' | 'processing';
+    registrationId: string;
+}
+
+// ========== FEEDBACK ==========
+
+export interface FeedbackRequest {
+    registrationId: string;
+    rating: 1 | 2 | 3 | 4 | 5;
+    comment?: string;
+    suggestions?: string;
+}
+
+// ========== API RESPONSE ==========
+
+export interface ApiResponse<T> {
+    data: T;
+    total?: number;
+    success?: boolean;
+    message?: string;
+}
