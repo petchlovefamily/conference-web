@@ -12,10 +12,12 @@ const getToken = () => {
 export async function apiClient<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = getToken();
 
+    const isFormData = options.body instanceof FormData;
+
     const config: RequestInit = {
         ...options,
         headers: {
-            'Content-Type': 'application/json',
+            ...(!isFormData && { 'Content-Type': 'application/json' }),
             ...(token && { Authorization: `Bearer ${token}` }),
             ...options.headers,
         },
@@ -24,8 +26,8 @@ export async function apiClient<T>(endpoint: string, options: RequestInit = {}):
     const response = await fetch(`${API_URL}${endpoint}`, config);
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Request failed' }));
-        throw new Error(error.message || `HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
     }
 
     return response.json();

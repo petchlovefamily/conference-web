@@ -1,11 +1,18 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
 interface User {
     id: number;
-    name: string;
     email: string;
+    firstName: string;
+    lastName: string;
     role: string;
+    country?: string | null;
+    delegateType?: string;
+    isThai?: boolean;
+    // Computed display name for backward compatibility
+    name: string;
 }
 
 interface AuthContextType {
@@ -35,12 +42,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     const parsedUser = JSON.parse(storedUser);
                     setToken(storedToken);
                     setUser(parsedUser);
-
-                    // Optional: Verify token with backend
-                    // const isValid = await verifyToken(storedToken);
-                    // if (!isValid) {
-                    //     logout();
-                    // }
                 }
             } catch (error) {
                 console.error('Auth check failed:', error);

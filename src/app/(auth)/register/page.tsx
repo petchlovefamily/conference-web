@@ -5,21 +5,32 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-// Mock register - always succeeds
+import { authApi } from '@/lib/api/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Mail, Lock, User, Phone, Sparkles, ArrowRight, ArrowLeft, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, Mail, Lock, User, Phone, Sparkles, ArrowRight, ArrowLeft, CheckCircle, Eye, EyeOff, Building2, GraduationCap, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 
+const accountTypes = [
+    { value: 'thaiStudent', label: 'นักศึกษา', icon: GraduationCap, description: 'Thai Student' },
+    { value: 'thaiProfessional', label: 'เภสัชกร', icon: Briefcase, description: 'Thai Professional' },
+] as const;
+
+type AccountType = 'thaiStudent' | 'thaiProfessional';
+
 const registerSchema = z.object({
-    name: z.string().min(2, 'Name is required'),
-    email: z.string().email('Invalid email address'),
-    phone: z.string().min(9, 'Phone number is required'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string().min(6, 'Confirm password is required'),
+    firstName: z.string().min(1, 'กรุณากรอกชื่อ'),
+    lastName: z.string().min(1, 'กรุณากรอกนามสกุล'),
+    email: z.string().email('กรุณากรอกอีเมลให้ถูกต้อง'),
+    phone: z.string().optional(),
+    password: z.string().min(6, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'),
+    confirmPassword: z.string().min(6, 'กรุณายืนยันรหัสผ่าน'),
+    organization: z.string().optional(),
+    idCard: z.string().optional(),
+    pharmacyLicenseId: z.string().optional(),
 }).refine(data => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
+    message: "รหัสผ่านไม่ตรงกัน",
     path: ["confirmPassword"],
 });
 
@@ -30,6 +41,8 @@ export default function RegisterPage() {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [accountType, setAccountType] = useState<AccountType>('thaiProfessional');
+    const isStudent = accountType === 'thaiStudent';
 
     const { register, handleSubmit, formState: { errors } } = useForm<RegisterForm>({
         resolver: zodResolver(registerSchema),
@@ -39,8 +52,26 @@ export default function RegisterPage() {
         setIsLoading(true);
         setError(null);
         try {
-            // Mock register - simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Build FormData for multipart upload
+            const formData = new FormData();
+            formData.append('firstName', data.firstName);
+            formData.append('lastName', data.lastName);
+            formData.append('email', data.email);
+            formData.append('password', data.password);
+            formData.append('accountType', accountType);
+
+            if (data.phone) formData.append('phone', data.phone);
+            if (data.organization) formData.append('organization', data.organization);
+
+            // Conditional fields based on account type
+            if (data.idCard) {
+                formData.append('idCard', data.idCard);
+            }
+            if (data.pharmacyLicenseId) {
+                formData.append('pharmacyLicenseId', data.pharmacyLicenseId);
+            }
+
+            await authApi.register(formData);
             router.push('/login?registered=true');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
@@ -122,7 +153,7 @@ export default function RegisterPage() {
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-green-600/20 rounded-full blur-[100px]" />
                 </div>
 
-                <div className="w-full max-w-md relative z-10">
+                <div className="w-full max-w-lg relative z-10">
                     {/* Back to Home Link */}
                     <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors group">
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -142,8 +173,8 @@ export default function RegisterPage() {
                     {/* Form Card */}
                     <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
                         <div className="text-center mb-6">
-                            <h1 className="text-3xl font-bold mb-2">Create Account</h1>
-                            <p className="text-gray-400 text-sm">Fill in your details to get started</p>
+                            <h1 className="text-3xl font-bold mb-2">สร้างบัญชีผู้ใช้</h1>
+                            <p className="text-gray-400 text-sm">กรอกข้อมูลเพื่อลงทะเบียน</p>
                         </div>
 
                         {error && (
@@ -153,23 +184,64 @@ export default function RegisterPage() {
                             </div>
                         )}
 
+                        {/* Account Type Selector */}
+                        <div className="mb-6">
+                            <Label className="text-gray-300 mb-3 block">ประเภทบัญชี</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {accountTypes.map((type) => {
+                                    const Icon = type.icon;
+                                    return (
+                                        <button
+                                            key={type.value}
+                                            type="button"
+                                            onClick={() => setAccountType(type.value)}
+                                            className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all text-sm ${accountType === type.value
+                                                ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-300'
+                                                : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                                                }`}
+                                        >
+                                            <Icon className="w-4 h-4 flex-shrink-0" />
+                                            <span>{type.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name" className="text-gray-300">Full Name</Label>
-                                <div className="relative">
-                                    <User className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
-                                    <Input
-                                        id="name"
-                                        placeholder="John Doe"
-                                        className="pl-12 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
-                                        {...register('name')}
-                                    />
+                            {/* Name Fields */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="firstName" className="text-gray-300">ชื่อ</Label>
+                                    <div className="relative">
+                                        <User className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
+                                        <Input
+                                            id="firstName"
+                                            placeholder="ชื่อ"
+                                            className="pl-12 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                            {...register('firstName')}
+                                        />
+                                    </div>
+                                    {errors.firstName && <p className="text-sm text-red-400">{errors.firstName.message}</p>}
                                 </div>
-                                {errors.name && <p className="text-sm text-red-400">{errors.name.message}</p>}
+                                <div className="space-y-2">
+                                    <Label htmlFor="lastName" className="text-gray-300">นามสกุล</Label>
+                                    <div className="relative">
+                                        <User className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
+                                        <Input
+                                            id="lastName"
+                                            placeholder="นามสกุล"
+                                            className="pl-12 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                            {...register('lastName')}
+                                        />
+                                    </div>
+                                    {errors.lastName && <p className="text-sm text-red-400">{errors.lastName.message}</p>}
+                                </div>
                             </div>
 
+                            {/* Email */}
                             <div className="space-y-2">
-                                <Label htmlFor="email" className="text-gray-300">Email Address</Label>
+                                <Label htmlFor="email" className="text-gray-300">อีเมล</Label>
                                 <div className="relative">
                                     <Mail className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                     <Input
@@ -183,8 +255,9 @@ export default function RegisterPage() {
                                 {errors.email && <p className="text-sm text-red-400">{errors.email.message}</p>}
                             </div>
 
+                            {/* Phone */}
                             <div className="space-y-2">
-                                <Label htmlFor="phone" className="text-gray-300">Phone Number</Label>
+                                <Label htmlFor="phone" className="text-gray-300">เบอร์โทรศัพท์ <span className="text-gray-500">(ไม่บังคับ)</span></Label>
                                 <div className="relative">
                                     <Phone className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                     <Input
@@ -194,12 +267,57 @@ export default function RegisterPage() {
                                         {...register('phone')}
                                     />
                                 </div>
-                                {errors.phone && <p className="text-sm text-red-400">{errors.phone.message}</p>}
                             </div>
 
+                            {/* Organization */}
+                            <div className="space-y-2">
+                                <Label htmlFor="organization" className="text-gray-300">
+                                    {isStudent ? 'สถาบันการศึกษา' : 'หน่วยงาน/องค์กร'} <span className="text-gray-500">(ไม่บังคับ)</span>
+                                </Label>
+                                <div className="relative">
+                                    <Building2 className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
+                                    <Input
+                                        id="organization"
+                                        placeholder={isStudent ? 'มหาวิทยาลัย...' : 'โรงพยาบาล/บริษัท...'}
+                                        className="pl-12 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                        {...register('organization')}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Thai ID Card */}
+                            <div className="space-y-2">
+                                <Label htmlFor="idCard" className="text-gray-300">เลขบัตรประชาชน <span className="text-gray-500">(13 หลัก)</span></Label>
+                                <Input
+                                    id="idCard"
+                                    placeholder="X-XXXX-XXXXX-XX-X"
+                                    maxLength={13}
+                                    className="h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                    {...register('idCard')}
+                                />
+                            </div>
+
+                            {/* Pharmacy License (for professionals) */}
+                            {!isStudent && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="pharmacyLicenseId" className="text-gray-300">
+                                        เลขใบอนุญาต <span className="text-gray-500">(ไม่บังคับ)</span>
+                                    </Label>
+                                    <Input
+                                        id="pharmacyLicenseId"
+                                        placeholder="ภ.XXXXX"
+                                        className="h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                        {...register('pharmacyLicenseId')}
+                                    />
+                                </div>
+                            )}
+
+
+
+                            {/* Password Fields */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="password" className="text-gray-300">Password</Label>
+                                    <Label htmlFor="password" className="text-gray-300">รหัสผ่าน</Label>
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                         <Input
@@ -221,7 +339,7 @@ export default function RegisterPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="confirmPassword" className="text-gray-300">Confirm</Label>
+                                    <Label htmlFor="confirmPassword" className="text-gray-300">ยืนยัน</Label>
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                         <Input
@@ -231,13 +349,6 @@ export default function RegisterPage() {
                                             className="pl-12 pr-10 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
                                             {...register('confirmPassword')}
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-3 text-gray-500 hover:text-gray-300 transition-colors"
-                                        >
-                                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                                        </button>
                                     </div>
                                     {errors.confirmPassword && <p className="text-sm text-red-400">{errors.confirmPassword.message}</p>}
                                 </div>
@@ -266,11 +377,11 @@ export default function RegisterPage() {
                                 {isLoading ? (
                                     <span className="flex items-center gap-2">
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Creating account...
+                                        กำลังสร้างบัญชี...
                                     </span>
                                 ) : (
                                     <span className="flex items-center gap-2">
-                                        Create Account <ArrowRight className="w-4 h-4" />
+                                        สร้างบัญชี <ArrowRight className="w-4 h-4" />
                                     </span>
                                 )}
                             </Button>
@@ -279,9 +390,9 @@ export default function RegisterPage() {
 
                     {/* Login Link */}
                     <p className="text-center text-gray-400 mt-6">
-                        Already have an account?{' '}
+                        มีบัญชีอยู่แล้ว?{' '}
                         <Link href="/login" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
-                            Sign in
+                            เข้าสู่ระบบ
                         </Link>
                     </p>
                 </div>

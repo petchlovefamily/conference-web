@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-// Mock login - accepts any credentials
+import { authApi } from '@/lib/api/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,24 +39,32 @@ export default function LoginPage() {
         setIsLoading(true);
         setError(null);
         try {
-            // Mock login - simulate API delay and return mock user
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const mockToken = 'mock-token-' + Date.now();
-            const mockUser = {
-                id: 1,
-                name: data.email.split('@')[0],
-                email: data.email,
-                role: 'member',
+            const response = await authApi.login(data.email, data.password);
+
+            // Map API user to AuthContext format
+            const authUser = {
+                id: response.user.id,
+                email: response.user.email,
+                firstName: response.user.firstName,
+                lastName: response.user.lastName,
+                role: response.user.role,
+                country: response.user.country,
+                delegateType: response.user.delegateType,
+                isThai: response.user.isThai,
+                name: `${response.user.firstName} ${response.user.lastName}`,
             };
 
-            // ใช้ AuthContext login function (เก็บใน localStorage ของ Frontend)
-            login(mockToken, mockUser);
-
-            // Mock: always redirect to events (no backoffice)
+            login(response.token, authUser);
             router.push('/events');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
-            setError(errorMessage);
+            if (errorMessage === 'ACCOUNT_PENDING') {
+                setError('บัญชีของคุณอยู่ระหว่างรอการอนุมัติ กรุณารอการตรวจสอบจากเจ้าหน้าที่');
+            } else if (errorMessage === 'ACCOUNT_REJECTED') {
+                setError('บัญชีของคุณถูกปฏิเสธ กรุณาติดต่อเจ้าหน้าที่');
+            } else {
+                setError(errorMessage);
+            }
         } finally {
             setIsLoading(false);
         }

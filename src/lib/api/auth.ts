@@ -1,11 +1,16 @@
-import { api } from './client';
+import { api, apiClient } from './client';
 
-// Types
+// Types matching the actual API response
 export interface User {
     id: number;
-    name: string;
     email: string;
+    firstName: string;
+    lastName: string;
     role: string;
+    country: string | null;
+    delegateType?: string;
+    isThai?: boolean;
+    idCard?: string | null;
 }
 
 interface LoginResponse {
@@ -14,29 +19,30 @@ interface LoginResponse {
     user: User;
 }
 
-interface RegisterData {
-    email: string;
-    password: string;
-    name: string;
-    phone?: string;
-    organization?: string;
-}
-
 interface RegisterResponse {
     success: boolean;
-    message: string;
-    data: { id: number; email: string; name: string };
+    user: {
+        id: number;
+        email: string;
+        firstName: string;
+        lastName: string;
+        role: string;
+        status: string;
+    };
 }
 
 // Auth API
 export const authApi = {
     login: (email: string, password: string) =>
-        api.post<LoginResponse>('/api/auth/login', { email, password }),
+        api.post<LoginResponse>('/auth/login', { email, password }),
 
-    register: (data: RegisterData) =>
-        api.post<RegisterResponse>('/api/auth/register', data),
+    register: (formData: FormData) =>
+        apiClient<RegisterResponse>('/auth/register', {
+            method: 'POST',
+            body: formData,
+        }),
 
-    me: () => api.get<{ success: boolean; user: User }>('/api/auth/me'),
+    me: () => api.get<{ success: boolean; user: User }>('/auth/me'),
 
     logout: () => {
         if (typeof window !== 'undefined') {
