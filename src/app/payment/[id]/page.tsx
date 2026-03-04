@@ -48,7 +48,7 @@ export default function PaymentPage() {
     }, [method, cardSuccess]);
 
 
-    if (!event) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+    if (!event) return <div className="min-h-screen bg-white text-[#6f7e0d] flex items-center justify-center">Loading...</div>;
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);

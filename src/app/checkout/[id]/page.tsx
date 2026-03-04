@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Calendar, MapPin, CreditCard, User, Mail, Phone, Building2, Ticket, QrCode, MessageSquare, Send, Loader2, Lock } from 'lucide-react';
 import { StripePaymentForm } from '@/components/payment/StripePaymentForm';
 import { useAuth } from '@/contexts/AuthContext';
+import { useScrollAnimation } from '@/hooks/use-scroll-animation';
 import {
     Dialog,
     DialogContent,
@@ -39,6 +40,12 @@ export default function CheckoutPage() {
 
     // Get logged-in user info
     const { user, isLoggedIn } = useAuth();
+    const [mounted, setMounted] = useState(false);
+
+    const { ref: formRef, isVisible: formVisible } = useScrollAnimation({ rootMargin: '0px 0px -20px 0px' });
+    const { ref: paymentRef, isVisible: paymentVisible } = useScrollAnimation();
+    const { ref: deliveryRef, isVisible: deliveryVisible } = useScrollAnimation();
+    const { ref: summaryRef, isVisible: summaryVisible } = useScrollAnimation();
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -63,6 +70,11 @@ export default function CheckoutPage() {
 
     const [paymentMethod, setPaymentMethod] = useState<'qr' | 'credit_card'>('credit_card');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Mounted animation
+    useEffect(() => {
+        requestAnimationFrame(() => setMounted(true));
+    }, []);
 
     // Pre-fill email from logged-in user
     useEffect(() => {
@@ -113,7 +125,7 @@ export default function CheckoutPage() {
         retry: 1,
     });
 
-    if (!event) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+    if (!event) return <div className="min-h-screen bg-white text-[#6f7e0d] flex items-center justify-center">Loading...</div>;
 
     const round = event.rounds?.find((r: Round) => r.id === roundId) || event.rounds?.[0];
 
@@ -200,152 +212,149 @@ export default function CheckoutPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background text-foreground flex flex-col">
+        <div className="min-h-screen bg-white text-gray-900 flex flex-col">
             <Navbar />
 
             <div className="flex-grow pt-32 pb-20 px-4 md:px-6 relative">
-                {/* Background Elements */}
-                <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-emerald-900/20 to-transparent -z-10" />
-
                 <div className="container mx-auto max-w-6xl">
-                    <h1 className="text-4xl font-bold mb-8 text-center md:text-left">Checkout & Registration</h1>
+                    <h1 className={`text-4xl font-bold mb-8 text-center md:text-left text-[#6f7e0d] scroll-animate fade-up ${mounted ? 'is-visible' : ''}`}>Checkout & Registration</h1>
 
                     <div className="grid lg:grid-cols-3 gap-8">
                         {/* Left: Registration Form */}
                         <div className="lg:col-span-2 space-y-6">
-                            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                            <Card ref={formRef} className={`bg-white border-gray-200 shadow-sm scroll-animate fade-up stagger-1 ${formVisible ? 'is-visible' : ''}`}>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <User className="w-5 h-5 text-emerald-400" />
-                                        Participant Details
+                                    <CardTitle className="flex items-center gap-2 text-gray-900">
+                                        <User className="w-5 h-5 text-[#537547]" />
+                                        ข้อมูลผู้เข้าร่วม
                                     </CardTitle>
-                                    <CardDescription>
-                                        Please fill in the information for the attendee.
+                                    <CardDescription className="text-gray-500">
+                                        กรุณากรอกข้อมูลสำหรับผู้เข้าร่วมงาน
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <form id="checkout-form" onSubmit={handleFormSubmit} className="space-y-6">
                                         <div className="grid md:grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="firstName" className="text-gray-300">First Name</Label>
+                                                <Label htmlFor="firstName" className="text-gray-700">ชื่อ</Label>
                                                 <Input
                                                     id="firstName" name="firstName" required
                                                     placeholder="John"
                                                     value={formData.firstName} onChange={handleInputChange}
-                                                    className="bg-black/20 border-white/10 focus:border-emerald-500"
+                                                    className="bg-gray-50 border-gray-200 focus:border-[#537547] text-gray-900"
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="lastName" className="text-gray-300">Last Name</Label>
+                                                <Label htmlFor="lastName" className="text-gray-700">นามสกุล</Label>
                                                 <Input
                                                     id="lastName" name="lastName" required
                                                     placeholder="Doe"
                                                     value={formData.lastName} onChange={handleInputChange}
-                                                    className="bg-black/20 border-white/10 focus:border-emerald-500"
+                                                    className="bg-gray-50 border-gray-200 focus:border-[#537547] text-gray-900"
                                                 />
                                             </div>
                                         </div>
 
                                         <div className="grid md:grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="email" className="text-gray-300 flex items-center gap-2">
-                                                    Email Address
-                                                    {isLoggedIn && <Lock className="w-3 h-3 text-emerald-400" />}
+                                                <Label htmlFor="email" className="text-gray-700 flex items-center gap-2">
+                                                    อีเมล
+                                                    {isLoggedIn && <Lock className="w-3 h-3 text-[#537547]" />}
                                                 </Label>
                                                 <div className="relative">
-                                                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+                                                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                                                     <Input
                                                         id="email" name="email" type="email" required
                                                         placeholder="john@example.com"
                                                         value={formData.email} onChange={handleInputChange}
                                                         disabled={isLoggedIn}
-                                                        className={`pl-10 bg-black/20 border-white/10 focus:border-emerald-500 ${isLoggedIn ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                                        className={`pl-10 bg-gray-50 border-gray-200 focus:border-[#537547] text-gray-900 ${isLoggedIn ? 'opacity-70 cursor-not-allowed' : ''}`}
                                                     />
                                                 </div>
                                                 {isLoggedIn && (
-                                                    <p className="text-xs text-emerald-400">ใช้ email จากบัญชีที่ login อยู่</p>
+                                                    <p className="text-xs text-[#537547]">ใช้ email จากบัญชีที่ login อยู่</p>
                                                 )}
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="phone" className="text-gray-300">Phone Number</Label>
+                                                <Label htmlFor="phone" className="text-gray-700">เบอร์โทรศัพท์</Label>
                                                 <div className="relative">
-                                                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+                                                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                                                     <Input
                                                         id="phone" name="phone" type="tel" required
                                                         placeholder="0812345678"
                                                         value={formData.phone} onChange={handleInputChange}
-                                                        className="pl-10 bg-black/20 border-white/10 focus:border-emerald-500"
+                                                        className="pl-10 bg-gray-50 border-gray-200 focus:border-[#537547] text-gray-900"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label htmlFor="organization" className="text-gray-300">Organization / Hospital</Label>
+                                            <Label htmlFor="organization" className="text-gray-700">หน่วยงาน / โรงพยาบาล</Label>
                                             <div className="relative">
-                                                <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+                                                <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                                                 <Input
                                                     id="organization" name="organization"
                                                     placeholder="Bangkok Hospital"
                                                     value={formData.organization} onChange={handleInputChange}
-                                                    className="pl-10 bg-black/20 border-white/10 focus:border-emerald-500"
+                                                    className="pl-10 bg-gray-50 border-gray-200 focus:border-[#537547] text-gray-900"
                                                 />
                                             </div>
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label htmlFor="licenseNumber" className="text-gray-300">Pharmacist License Number (Optional)</Label>
+                                            <Label htmlFor="licenseNumber" className="text-gray-700">เลขที่ใบอนุญาตเภสัชกร (ไม่บังคับ)</Label>
                                             <Input
                                                 id="licenseNumber" name="licenseNumber"
                                                 placeholder="PH-xxxxx"
                                                 value={formData.licenseNumber} onChange={handleInputChange}
-                                                className="bg-black/20 border-white/10 focus:border-emerald-500"
+                                                className="bg-gray-50 border-gray-200 focus:border-[#537547] text-gray-900"
                                             />
-                                            <p className="text-xs text-gray-500">Required for CPE credit accumulation.</p>
+                                            <p className="text-xs text-gray-500">จำเป็นสำหรับการสะสมหน่วยกิต CPE</p>
                                         </div>
                                     </form>
                                 </CardContent>
                             </Card>
 
                             {/* Payment Method Selection */}
-                            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                            <Card ref={paymentRef} className={`bg-white border-gray-200 shadow-sm scroll-animate fade-up stagger-2 ${paymentVisible ? 'is-visible' : ''}`}>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <CreditCard className="w-5 h-5 text-emerald-400" />
-                                        Payment Method
+                                    <CardTitle className="flex items-center gap-2 text-gray-900">
+                                        <CreditCard className="w-5 h-5 text-[#537547]" />
+                                        วิธีการชำระเงิน
                                     </CardTitle>
-                                    <CardDescription>Select how you would like to pay.</CardDescription>
+                                    <CardDescription className="text-gray-500">เลือกวิธีการชำระเงินที่ต้องการ</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="grid md:grid-cols-2 gap-4">
                                         <div
                                             onClick={() => setPaymentMethod('qr')}
-                                            className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all ${paymentMethod === 'qr' ? 'bg-emerald-600/20 border-emerald-500 shadow-[0_0_15px_rgba(147,51,234,0.3)]' : 'bg-black/20 border-white/10 hover:bg-white/5'}`}
+                                            className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all duration-300 ${paymentMethod === 'qr' ? 'bg-[#537547]/10 border-[#537547] shadow-sm scale-[1.02]' : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:scale-[1.02]'}`}
                                         >
-                                            <QrCode className={`w-8 h-8 ${paymentMethod === 'qr' ? 'text-emerald-400' : 'text-gray-400'}`} />
+                                            <QrCode className={`w-8 h-8 ${paymentMethod === 'qr' ? 'text-[#537547]' : 'text-gray-400'}`} />
                                             <div className="text-center">
-                                                <div className={`font-bold ${paymentMethod === 'qr' ? 'text-white' : 'text-gray-300'}`}>Thai QR Payment</div>
-                                                <div className="text-xs text-gray-500">Scan via any banking app</div>
+                                                <div className={`font-bold ${paymentMethod === 'qr' ? 'text-gray-900' : 'text-gray-600'}`}>Thai QR Payment</div>
+                                                <div className="text-xs text-gray-500">สแกนผ่านแอปธนาคาร</div>
                                             </div>
                                         </div>
 
                                         <div
                                             onClick={() => setPaymentMethod('credit_card')}
-                                            className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all ${paymentMethod === 'credit_card' ? 'bg-emerald-600/20 border-emerald-500 shadow-[0_0_15px_rgba(147,51,234,0.3)]' : 'bg-black/20 border-white/10 hover:bg-white/5'}`}
+                                            className={`cursor-pointer border rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all duration-300 ${paymentMethod === 'credit_card' ? 'bg-[#537547]/10 border-[#537547] shadow-sm scale-[1.02]' : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:scale-[1.02]'}`}
                                         >
-                                            <CreditCard className={`w-8 h-8 ${paymentMethod === 'credit_card' ? 'text-emerald-400' : 'text-gray-400'}`} />
+                                            <CreditCard className={`w-8 h-8 ${paymentMethod === 'credit_card' ? 'text-[#537547]' : 'text-gray-400'}`} />
                                             <div className="text-center">
-                                                <div className={`font-bold ${paymentMethod === 'credit_card' ? 'text-white' : 'text-gray-300'}`}>Credit / Debit Card</div>
+                                                <div className={`font-bold ${paymentMethod === 'credit_card' ? 'text-gray-900' : 'text-gray-600'}`}>Credit / Debit Card</div>
                                                 <div className="text-xs text-gray-500">Visa, Mastercard, JCB</div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {paymentMethod === 'credit_card' && (
-                                        <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-200 text-sm flex items-start gap-2">
-                                            <div className="mt-1 w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                                        <div className="mt-6 p-4 bg-[#537547]/10 border border-[#537547]/20 rounded-lg text-gray-700 text-sm flex items-start gap-2">
+                                            <div className="mt-1 w-2 h-2 rounded-full bg-[#537547] flex-shrink-0" />
                                             <span>
-                                                Credit Card payment is processed via ksher. Please enter your card details in the popup.
+                                                การชำระเงินผ่านบัตรเครดิตดำเนินการผ่าน Ksher กรุณากรอกข้อมูลบัตรในหน้าต่างถัดไป
                                             </span>
                                         </div>
                                     )}
@@ -353,32 +362,32 @@ export default function CheckoutPage() {
                             </Card>
 
                             {/* E-Ticket Delivery Options */}
-                            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                            <Card ref={deliveryRef} className={`bg-white border-gray-200 shadow-sm scroll-animate fade-up stagger-3 ${deliveryVisible ? 'is-visible' : ''}`}>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Send className="w-5 h-5 text-emerald-400" />
+                                    <CardTitle className="flex items-center gap-2 text-gray-900">
+                                        <Send className="w-5 h-5 text-[#537547]" />
                                         ช่องทางรับ E-Ticket
                                     </CardTitle>
-                                    <CardDescription>เลือกช่องทางที่ต้องการรับ E-Ticket หลังชำระเงิน</CardDescription>
+                                    <CardDescription className="text-gray-500">เลือกช่องทางที่ต้องการรับ E-Ticket หลังชำระเงิน</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-4">
                                         {/* Email Option */}
                                         <label
                                             className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${deliveryOptions.sendViaEmail
-                                                ? 'bg-emerald-600/20 border-emerald-500'
-                                                : 'bg-black/20 border-white/10 hover:bg-white/5'
+                                                ? 'bg-[#537547]/10 border-[#537547]'
+                                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                                                 }`}
                                         >
                                             <input
                                                 type="checkbox"
                                                 checked={deliveryOptions.sendViaEmail}
                                                 onChange={(e) => setDeliveryOptions(prev => ({ ...prev, sendViaEmail: e.target.checked }))}
-                                                className="w-5 h-5 rounded border-white/20 bg-black/20 text-emerald-500 focus:ring-emerald-500"
+                                                className="w-5 h-5 rounded border-gray-300 text-[#537547] focus:ring-[#537547]"
                                             />
-                                            <Mail className={`w-6 h-6 ${deliveryOptions.sendViaEmail ? 'text-emerald-400' : 'text-gray-400'}`} />
+                                            <Mail className={`w-6 h-6 ${deliveryOptions.sendViaEmail ? 'text-[#537547]' : 'text-gray-400'}`} />
                                             <div className="flex-1">
-                                                <div className={`font-bold ${deliveryOptions.sendViaEmail ? 'text-white' : 'text-gray-300'}`}>
+                                                <div className={`font-bold ${deliveryOptions.sendViaEmail ? 'text-gray-900' : 'text-gray-600'}`}>
                                                     Email
                                                 </div>
                                                 <div className="text-xs text-gray-500">
@@ -390,19 +399,19 @@ export default function CheckoutPage() {
                                         {/* SMS Option */}
                                         <label
                                             className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${deliveryOptions.sendViaSms
-                                                ? 'bg-emerald-600/20 border-emerald-500'
-                                                : 'bg-black/20 border-white/10 hover:bg-white/5'
+                                                ? 'bg-[#537547]/10 border-[#537547]'
+                                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                                                 }`}
                                         >
                                             <input
                                                 type="checkbox"
                                                 checked={deliveryOptions.sendViaSms}
                                                 onChange={(e) => setDeliveryOptions(prev => ({ ...prev, sendViaSms: e.target.checked }))}
-                                                className="w-5 h-5 rounded border-white/20 bg-black/20 text-emerald-500 focus:ring-emerald-500"
+                                                className="w-5 h-5 rounded border-gray-300 text-[#537547] focus:ring-[#537547]"
                                             />
-                                            <MessageSquare className={`w-6 h-6 ${deliveryOptions.sendViaSms ? 'text-emerald-400' : 'text-gray-400'}`} />
+                                            <MessageSquare className={`w-6 h-6 ${deliveryOptions.sendViaSms ? 'text-[#537547]' : 'text-gray-400'}`} />
                                             <div className="flex-1">
-                                                <div className={`font-bold ${deliveryOptions.sendViaSms ? 'text-white' : 'text-gray-300'}`}>
+                                                <div className={`font-bold ${deliveryOptions.sendViaSms ? 'text-gray-900' : 'text-gray-600'}`}>
                                                     SMS
                                                 </div>
                                                 <div className="text-xs text-gray-500">
@@ -413,7 +422,7 @@ export default function CheckoutPage() {
                                     </div>
 
                                     {!deliveryOptions.sendViaEmail && !deliveryOptions.sendViaSms && (
-                                        <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-300 text-sm">
+                                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
                                             ⚠️ กรุณาเลือกอย่างน้อย 1 ช่องทางรับ E-Ticket
                                         </div>
                                     )}
@@ -422,55 +431,55 @@ export default function CheckoutPage() {
                         </div>
 
                         {/* Right: Order Summary */}
-                        <div className="lg:col-span-1">
-                            <div className="sticky top-24">
-                                <Card className="bg-gradient-to-br from-emerald-900/40 to-black/40 border-emerald-500/30 backdrop-blur-xl">
+                        <div ref={summaryRef} className="lg:col-span-1">
+                            <div>
+                                <Card className={`bg-white border-gray-200 shadow-lg scroll-animate slide-right ${summaryVisible ? 'is-visible' : ''}`}>
                                     <CardHeader className="pb-4">
-                                        <CardTitle>Order Summary</CardTitle>
+                                        <CardTitle className="text-[#6f7e0d]">สรุปรายการ</CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div className="flex gap-4">
-                                            <img src={event.coverImage} alt={event.name} className="w-20 h-20 rounded-lg object-cover bg-gray-800" />
+                                            <img src={event.coverImage} alt={event.name} className="w-20 h-20 rounded-lg object-cover bg-gray-100" />
                                             <div>
-                                                <h3 className="font-bold text-sm line-clamp-2">{event.name}</h3>
-                                                <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                                                <h3 className="font-bold text-sm line-clamp-2 text-gray-900">{event.name}</h3>
+                                                <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                                                     <Ticket className="w-3 h-3" />
                                                     {event.eventType === 'single' ? 'Single Event' : 'Conference'}
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="border-t border-white/10 pt-4 space-y-3 text-sm">
+                                        <div className="border-t border-gray-200 pt-4 space-y-3 text-sm">
                                             <div className="flex justify-between w-full">
-                                                <span className="text-gray-400 flex items-center gap-2"><Calendar className="w-3 h-3" /> Date</span>
-                                                <span className="text-right">{round?.date ? new Date(round.date).toLocaleDateString() : 'TBA'}</span>
+                                                <span className="text-gray-500 flex items-center gap-2"><Calendar className="w-3 h-3" /> วันที่</span>
+                                                <span className="text-gray-900">{round?.date ? new Date(round.date).toLocaleDateString() : 'TBA'}</span>
                                             </div>
                                             <div className="flex justify-between w-full">
-                                                <span className="text-gray-400 flex items-center gap-2"><MapPin className="w-3 h-3" /> Location</span>
-                                                <span className="text-right truncate max-w-[150px]">{round?.location}</span>
+                                                <span className="text-gray-500 flex items-center gap-2"><MapPin className="w-3 h-3" /> สถานที่</span>
+                                                <span className="text-gray-900 text-right truncate max-w-[150px]">{round?.location}</span>
                                             </div>
                                         </div>
 
-                                        <div className="border-t border-white/10 pt-4">
+                                        <div className="border-t border-gray-200 pt-4">
                                             <div className="flex justify-between items-center mb-2">
-                                                <span className="text-gray-400">บัตรหลัก ({finalTicketType?.name || 'General'})</span>
-                                                <span>฿{ticketPrice.toLocaleString()}</span>
+                                                <span className="text-gray-500">บัตรหลัก ({finalTicketType?.name || 'General'})</span>
+                                                <span className="text-gray-900">฿{ticketPrice.toLocaleString()}</span>
                                             </div>
 
                                             {/* Add-ons Section */}
                                             {selectedAddons.length > 0 && (
-                                                <div className="space-y-2 mb-3 pb-3 border-b border-white/10">
-                                                    <div className="text-xs text-cyan-400">Add-ons:</div>
+                                                <div className="space-y-2 mb-3 pb-3 border-b border-gray-200">
+                                                    <div className="text-xs text-[#537547]">Add-ons:</div>
                                                     {selectedAddons.map((addon: TicketType) => (
                                                         <div key={addon.id} className="flex justify-between items-center text-sm">
-                                                            <span className="text-cyan-300">+ {addon.name}</span>
-                                                            <span className="text-cyan-400">฿{(typeof addon.price === 'string' ? parseFloat(addon.price) : addon.price).toLocaleString()}</span>
+                                                            <span className="text-[#537547]">+ {addon.name}</span>
+                                                            <span className="text-[#537547]">฿{(typeof addon.price === 'string' ? parseFloat(addon.price) : addon.price).toLocaleString()}</span>
                                                         </div>
                                                     ))}
                                                 </div>
                                             )}
 
-                                            <div className="flex justify-between items-center text-xl font-bold text-emerald-400 mt-4">
+                                            <div className="flex justify-between items-center text-xl font-bold text-[#537547] mt-4">
                                                 <span>รวมทั้งหมด</span>
                                                 <span>฿{totalPrice.toLocaleString()}</span>
                                             </div>
@@ -480,10 +489,10 @@ export default function CheckoutPage() {
                                         <Button
                                             form="checkout-form"
                                             type="submit"
-                                            className="w-full h-12 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 shadow-lg shadow-emerald-900/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="w-full h-12 bg-[#537547] hover:bg-[#456339] text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                                             disabled={isSubmitting || !formData.firstName || !formData.lastName || !formData.email || !formData.phone}
                                         >
-                                            {isSubmitting ? 'Processing...' : `Pay via ${paymentMethod === 'qr' ? 'QR Code' : 'Credit Card'}`}
+                                            {isSubmitting ? 'กำลังดำเนินการ...' : `ชำระเงินผ่าน${paymentMethod === 'qr' ? ' QR Code' : 'บัตรเครดิต'}`}
                                         </Button>
                                     </CardFooter>
                                 </Card>
@@ -497,17 +506,17 @@ export default function CheckoutPage() {
 
             {/* Stripe Payment Dialog */}
             <Dialog open={isStripeDialogOpen} onOpenChange={setIsStripeDialogOpen}>
-                <DialogContent className="sm:max-w-[480px] bg-black/95 border-white/10 text-white p-0 overflow-hidden backdrop-blur-xl">
+                <DialogContent className="sm:max-w-[480px] bg-white border-gray-200 text-gray-900 p-0 overflow-hidden">
                     <div className="p-6">
                         <DialogHeader className="mb-6">
                             <div className="flex items-center gap-3 mb-2">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-green-600 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-xl bg-[#537547] flex items-center justify-center">
                                     <CreditCard className="w-5 h-5 text-white" />
                                 </div>
-                                <DialogTitle className="text-2xl font-bold text-white">Pay with card</DialogTitle>
+                                <DialogTitle className="text-2xl font-bold text-gray-900">ชำระด้วยบัตร</DialogTitle>
                             </div>
-                            <DialogDescription className="text-gray-400">
-                                Enter your card details to complete the payment securely via Stripe.
+                            <DialogDescription className="text-gray-500">
+                                กรอกข้อมูลบัตรเพื่อชำระเงินอย่างปลอดภัยผ่าน Stripe
                             </DialogDescription>
                         </DialogHeader>
 
@@ -522,7 +531,7 @@ export default function CheckoutPage() {
                             />
                         ) : (
                             <div className="flex items-center justify-center py-8">
-                                <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                                <Loader2 className="w-8 h-8 animate-spin text-[#537547]" />
                             </div>
                         )}
                     </div>

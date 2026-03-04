@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -43,6 +43,11 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [accountType, setAccountType] = useState<AccountType>('thaiProfessional');
     const isStudent = accountType === 'thaiStudent';
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        requestAnimationFrame(() => setMounted(true));
+    }, []);
 
     const { register, handleSubmit, formState: { errors } } = useForm<RegisterForm>({
         resolver: zodResolver(registerSchema),
@@ -82,63 +87,65 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white flex">
+        <div className="min-h-screen bg-white text-[#6f7e0d] flex">
             {/* Left Side - Decorative */}
             <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
                 {/* Background Effects */}
                 <div className="absolute inset-0">
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-600/30 rounded-full blur-[120px]" />
-                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-green-600/30 rounded-full blur-[120px]" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#537547] via-[#456339] to-[#3d5733]" />
+                    <div className="absolute -top-20 -right-20 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+                    <div className="absolute -bottom-32 -left-20 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '1s' }} />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/3 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '2s' }} />
                 </div>
 
                 {/* Content */}
-                <div className="relative z-10 flex flex-col justify-center items-center w-full p-12">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <div className="relative z-10 flex flex-col justify-start items-center w-full pt-20 p-12">
+                    <div className={`flex items-center gap-3 mb-8 scroll-animate fade-up ${mounted ? 'is-visible' : ''}`}>
+                        <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shadow-lg">
                             <Sparkles className="w-6 h-6 text-white" />
                         </div>
-                        <span className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-green-500">
-                            ConfSys
+                        <span className="text-3xl font-bold text-white">
+                            สภาเภสัชกรรม
                         </span>
                     </div>
 
-                    <h2 className="text-4xl font-bold text-center mb-4 leading-tight">
-                        Join the<br />
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-green-400 to-emerald-400">
+                    <h2 className={`text-4xl font-bold text-center mb-4 leading-tight text-white scroll-animate fade-up stagger-1 ${mounted ? 'is-visible' : ''}`}>
+                        ลงทะเบียนบัญชี<br />
+                        <span className="text-white/90">
                             Conference Community
                         </span>
                     </h2>
-                    <p className="text-gray-400 text-center max-w-md mb-8">
-                        Create your account and start exploring world-class events.
+                    <p className={`text-white/70 text-center max-w-md mb-8 scroll-animate fade-up stagger-2 ${mounted ? 'is-visible' : ''}`}>
+                        สร้างบัญชีเพื่อเข้าร่วมงานประชุม และรับสิทธิประโยชน์มากมาย
                     </p>
 
                     {/* Benefits List */}
                     <div className="space-y-4 max-w-sm">
-                        <div className="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4">
-                            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                                <CheckCircle className="w-5 h-5 text-emerald-400" />
+                        <div className={`flex items-center gap-3 bg-white/10 border border-white/20 rounded-xl p-4 scroll-animate fade-up stagger-3 hover:-translate-y-0.5 hover:bg-white/15 transition-all duration-300 ${mounted ? 'is-visible' : ''}`}>
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                                <CheckCircle className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <div className="font-semibold">Easy Registration</div>
-                                <div className="text-sm text-gray-400">Book events in seconds</div>
+                                <div className="font-semibold text-white">ลงทะเบียนง่าย</div>
+                                <div className="text-sm text-white/60">จองที่นั่งได้ในไม่กี่คลิก</div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4">
-                            <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                                <CheckCircle className="w-5 h-5 text-green-400" />
+                        <div className={`flex items-center gap-3 bg-white/10 border border-white/20 rounded-xl p-4 scroll-animate fade-up stagger-4 hover:-translate-y-0.5 hover:bg-white/15 transition-all duration-300 ${mounted ? 'is-visible' : ''}`}>
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                                <GraduationCap className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <div className="font-semibold">CPE Credits</div>
-                                <div className="text-sm text-gray-400">Earn certificates automatically</div>
+                                <div className="font-semibold text-white">สะสมหน่วยกิต CPE</div>
+                                <div className="text-sm text-white/60">รับหน่วยกิตอัตโนมัติ</div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4">
-                            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                                <CheckCircle className="w-5 h-5 text-blue-400" />
+                        <div className={`flex items-center gap-3 bg-white/10 border border-white/20 rounded-xl p-4 scroll-animate fade-up stagger-5 hover:-translate-y-0.5 hover:bg-white/15 transition-all duration-300 ${mounted ? 'is-visible' : ''}`}>
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                                <Sparkles className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <div className="font-semibold">Exclusive Events</div>
-                                <div className="text-sm text-gray-400">Access members-only content</div>
+                                <div className="font-semibold text-white">Exclusive Events</div>
+                                <div className="text-sm text-white/60">เข้าถึงเนื้อหาพิเศษสำหรับสมาชิก</div>
                             </div>
                         </div>
                     </div>
@@ -148,37 +155,35 @@ export default function RegisterPage() {
             {/* Right Side - Register Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative">
                 {/* Background gradient for mobile */}
-                <div className="absolute inset-0 lg:hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600/20 rounded-full blur-[100px]" />
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-green-600/20 rounded-full blur-[100px]" />
+                <div className="absolute inset-0 lg:hidden bg-gray-50">
                 </div>
 
                 <div className="w-full max-w-lg relative z-10">
                     {/* Back to Home Link */}
-                    <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors group">
+                    <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-6 transition-colors group">
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                         <span>Back to Home</span>
                     </Link>
 
                     {/* Mobile Logo */}
                     <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-600 to-green-600 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-lg bg-[#537547] flex items-center justify-center">
                             <Sparkles className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-green-500">
-                            ConfSys
+                        <span className="text-2xl font-bold text-[#537547]">
+                            สภาเภสัชกรรม
                         </span>
                     </div>
 
                     {/* Form Card */}
-                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+                    <div className={`bg-white border border-gray-200 rounded-3xl p-8 shadow-lg scroll-animate slide-right ${mounted ? 'is-visible' : ''}`}>
                         <div className="text-center mb-6">
-                            <h1 className="text-3xl font-bold mb-2">สร้างบัญชีผู้ใช้</h1>
-                            <p className="text-gray-400 text-sm">กรอกข้อมูลเพื่อลงทะเบียน</p>
+                            <h1 className="text-3xl font-bold mb-2 text-[#6f7e0d]">สร้างบัญชีผู้ใช้</h1>
+                            <p className="text-gray-500 text-sm">กรอกข้อมูลเพื่อลงทะเบียน</p>
                         </div>
 
                         {error && (
-                            <div className="mb-6 flex items-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
+                            <div className="mb-6 flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-600">
                                 <AlertCircle className="h-5 w-5 flex-shrink-0" />
                                 <span>{error}</span>
                             </div>
@@ -186,7 +191,7 @@ export default function RegisterPage() {
 
                         {/* Account Type Selector */}
                         <div className="mb-6">
-                            <Label className="text-gray-300 mb-3 block">ประเภทบัญชี</Label>
+                            <Label className="text-gray-700 mb-3 block">ประเภทบัญชี</Label>
                             <div className="grid grid-cols-2 gap-2">
                                 {accountTypes.map((type) => {
                                     const Icon = type.icon;
@@ -196,8 +201,8 @@ export default function RegisterPage() {
                                             type="button"
                                             onClick={() => setAccountType(type.value)}
                                             className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-all text-sm ${accountType === type.value
-                                                ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-300'
-                                                : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                                                ? 'bg-[#537547]/10 border-[#537547]/50 text-[#537547] font-medium'
+                                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300'
                                                 }`}
                                         >
                                             <Icon className="w-4 h-4 flex-shrink-0" />
@@ -212,58 +217,58 @@ export default function RegisterPage() {
                             {/* Name Fields */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="firstName" className="text-gray-300">ชื่อ</Label>
+                                    <Label htmlFor="firstName" className="text-gray-700">ชื่อ</Label>
                                     <div className="relative">
                                         <User className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                         <Input
                                             id="firstName"
                                             placeholder="ชื่อ"
-                                            className="pl-12 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                            className="pl-12 h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                             {...register('firstName')}
                                         />
                                     </div>
-                                    {errors.firstName && <p className="text-sm text-red-400">{errors.firstName.message}</p>}
+                                    {errors.firstName && <p className="text-sm text-red-500">{errors.firstName.message}</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="lastName" className="text-gray-300">นามสกุล</Label>
+                                    <Label htmlFor="lastName" className="text-gray-700">นามสกุล</Label>
                                     <div className="relative">
                                         <User className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                         <Input
                                             id="lastName"
                                             placeholder="นามสกุล"
-                                            className="pl-12 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                            className="pl-12 h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                             {...register('lastName')}
                                         />
                                     </div>
-                                    {errors.lastName && <p className="text-sm text-red-400">{errors.lastName.message}</p>}
+                                    {errors.lastName && <p className="text-sm text-red-500">{errors.lastName.message}</p>}
                                 </div>
                             </div>
 
                             {/* Email */}
                             <div className="space-y-2">
-                                <Label htmlFor="email" className="text-gray-300">อีเมล</Label>
+                                <Label htmlFor="email" className="text-gray-700">อีเมล</Label>
                                 <div className="relative">
                                     <Mail className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                     <Input
                                         id="email"
                                         type="email"
                                         placeholder="name@example.com"
-                                        className="pl-12 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                        className="pl-12 h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                         {...register('email')}
                                     />
                                 </div>
-                                {errors.email && <p className="text-sm text-red-400">{errors.email.message}</p>}
+                                {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
                             </div>
 
                             {/* Phone */}
                             <div className="space-y-2">
-                                <Label htmlFor="phone" className="text-gray-300">เบอร์โทรศัพท์ <span className="text-gray-500">(ไม่บังคับ)</span></Label>
+                                <Label htmlFor="phone" className="text-gray-700">เบอร์โทรศัพท์ <span className="text-gray-400">(ไม่บังคับ)</span></Label>
                                 <div className="relative">
                                     <Phone className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                     <Input
                                         id="phone"
                                         placeholder="08XXXXXXXX"
-                                        className="pl-12 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                        className="pl-12 h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                         {...register('phone')}
                                     />
                                 </div>
@@ -271,15 +276,15 @@ export default function RegisterPage() {
 
                             {/* Organization */}
                             <div className="space-y-2">
-                                <Label htmlFor="organization" className="text-gray-300">
-                                    {isStudent ? 'สถาบันการศึกษา' : 'หน่วยงาน/องค์กร'} <span className="text-gray-500">(ไม่บังคับ)</span>
+                                <Label htmlFor="organization" className="text-gray-700">
+                                    {isStudent ? 'สถาบันการศึกษา' : 'หน่วยงาน/องค์กร'} <span className="text-gray-400">(ไม่บังคับ)</span>
                                 </Label>
                                 <div className="relative">
                                     <Building2 className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                     <Input
                                         id="organization"
                                         placeholder={isStudent ? 'มหาวิทยาลัย...' : 'โรงพยาบาล/บริษัท...'}
-                                        className="pl-12 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                        className="pl-12 h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                         {...register('organization')}
                                     />
                                 </div>
@@ -287,12 +292,12 @@ export default function RegisterPage() {
 
                             {/* Thai ID Card */}
                             <div className="space-y-2">
-                                <Label htmlFor="idCard" className="text-gray-300">เลขบัตรประชาชน <span className="text-gray-500">(13 หลัก)</span></Label>
+                                <Label htmlFor="idCard" className="text-gray-700">เลขบัตรประชาชน <span className="text-gray-400">(13 หลัก)</span></Label>
                                 <Input
                                     id="idCard"
                                     placeholder="X-XXXX-XXXXX-XX-X"
                                     maxLength={13}
-                                    className="h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                    className="h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                     {...register('idCard')}
                                 />
                             </div>
@@ -300,13 +305,13 @@ export default function RegisterPage() {
                             {/* Pharmacy License (for professionals) */}
                             {!isStudent && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="pharmacyLicenseId" className="text-gray-300">
-                                        เลขใบอนุญาต <span className="text-gray-500">(ไม่บังคับ)</span>
+                                    <Label htmlFor="pharmacyLicenseId" className="text-gray-700">
+                                        เลขใบอนุญาต <span className="text-gray-400">(ไม่บังคับ)</span>
                                     </Label>
                                     <Input
                                         id="pharmacyLicenseId"
                                         placeholder="ภ.XXXXX"
-                                        className="h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                        className="h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                         {...register('pharmacyLicenseId')}
                                     />
                                 </div>
@@ -317,40 +322,40 @@ export default function RegisterPage() {
                             {/* Password Fields */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="password" className="text-gray-300">รหัสผ่าน</Label>
+                                    <Label htmlFor="password" className="text-gray-700">รหัสผ่าน</Label>
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                         <Input
                                             id="password"
                                             type={showPassword ? "text" : "password"}
                                             placeholder="••••••"
-                                            className="pl-12 pr-10 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                            className="pl-12 pr-10 h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                             {...register('password')}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-3 text-gray-500 hover:text-gray-300 transition-colors"
+                                            className="absolute right-3 top-3 text-gray-500 hover:text-gray-700 transition-colors"
                                         >
                                             {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                                         </button>
                                     </div>
-                                    {errors.password && <p className="text-sm text-red-400">{errors.password.message}</p>}
+                                    {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="confirmPassword" className="text-gray-300">ยืนยัน</Label>
+                                    <Label htmlFor="confirmPassword" className="text-gray-700">ยืนยัน</Label>
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                         <Input
                                             id="confirmPassword"
                                             type={showPassword ? "text" : "password"}
                                             placeholder="••••••"
-                                            className="pl-12 pr-10 h-11 bg-black/30 border-white/10 rounded-xl focus:border-emerald-500 text-white placeholder:text-gray-500"
+                                            className="pl-12 pr-10 h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                             {...register('confirmPassword')}
                                         />
                                     </div>
-                                    {errors.confirmPassword && <p className="text-sm text-red-400">{errors.confirmPassword.message}</p>}
+                                    {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>}
                                 </div>
                             </div>
 
@@ -359,19 +364,19 @@ export default function RegisterPage() {
                                 <input
                                     type="checkbox"
                                     id="terms"
-                                    className="mt-1 w-4 h-4 rounded border-white/20 bg-black/30 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                                    className="mt-1 w-4 h-4 rounded border-gray-300 bg-white text-[#537547] focus:ring-[#537547] accent-[#537547]"
                                 />
-                                <label htmlFor="terms" className="text-sm text-gray-400">
+                                <label htmlFor="terms" className="text-sm text-gray-500">
                                     I agree to the{' '}
-                                    <Link href="/terms" className="text-emerald-400 hover:text-emerald-300">Terms of Service</Link>
+                                    <Link href="/terms" className="text-[#537547] hover:text-[#456339]">Terms of Service</Link>
                                     {' '}and{' '}
-                                    <Link href="/privacy" className="text-emerald-400 hover:text-emerald-300">Privacy Policy</Link>
+                                    <Link href="/privacy" className="text-[#537547] hover:text-[#456339]">Privacy Policy</Link>
                                 </label>
                             </div>
 
                             <Button
                                 type="submit"
-                                className="w-full h-12 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 rounded-xl font-semibold shadow-lg shadow-emerald-900/30 transition-all hover:shadow-emerald-900/50 hover:-translate-y-0.5"
+                                className="w-full h-12 bg-[#537547] hover:bg-[#456339] text-white rounded-xl font-semibold shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 active:shadow-md"
                                 disabled={isLoading}
                             >
                                 {isLoading ? (
@@ -389,9 +394,9 @@ export default function RegisterPage() {
                     </div>
 
                     {/* Login Link */}
-                    <p className="text-center text-gray-400 mt-6">
+                    <p className="text-center text-gray-500 mt-6">
                         มีบัญชีอยู่แล้ว?{' '}
-                        <Link href="/login" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+                        <Link href="/login" className="text-[#537547] hover:text-[#456339] font-medium transition-colors">
                             เข้าสู่ระบบ
                         </Link>
                     </p>

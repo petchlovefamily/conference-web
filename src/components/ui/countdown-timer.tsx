@@ -61,19 +61,19 @@ export function CountdownTimer({ targetDate, className = '' }: CountdownTimerPro
         <div className={`${className}`}>
             <div className="text-sm text-gray-400 mb-3 text-center">Event starts in</div>
             <div className="grid grid-cols-4 gap-2">
-                <div className="bg-gradient-to-br from-emerald-600/20 to-green-600/20 border border-emerald-500/30 rounded-xl p-3 text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-white">{timeLeft.days}</div>
+                <div className="bg-[#537547]/10 border border-[#537547]/20 rounded-xl p-3 text-center">
+                    <div className="text-2xl md:text-3xl font-bold text-[#537547]">{timeLeft.days}</div>
                     <div className="text-xs text-gray-400">Days</div>
                 </div>
-                <div className="bg-gradient-to-br from-emerald-600/20 to-green-600/20 border border-emerald-500/30 rounded-xl p-3 text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-white">{timeLeft.hours.toString().padStart(2, '0')}</div>
+                <div className="bg-[#537547]/10 border border-[#537547]/20 rounded-xl p-3 text-center">
+                    <div className="text-2xl md:text-3xl font-bold text-[#537547]">{timeLeft.hours.toString().padStart(2, '0')}</div>
                     <div className="text-xs text-gray-400">Hours</div>
                 </div>
-                <div className="bg-gradient-to-br from-emerald-600/20 to-green-600/20 border border-emerald-500/30 rounded-xl p-3 text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-white">{timeLeft.minutes.toString().padStart(2, '0')}</div>
+                <div className="bg-[#537547]/10 border border-[#537547]/20 rounded-xl p-3 text-center">
+                    <div className="text-2xl md:text-3xl font-bold text-[#537547]">{timeLeft.minutes.toString().padStart(2, '0')}</div>
                     <div className="text-xs text-gray-400">Mins</div>
                 </div>
-                <div className="bg-gradient-to-br from-emerald-600/20 to-green-600/20 border border-emerald-500/30 rounded-xl p-3 text-center">
+                <div className="bg-[#537547]/10 border border-[#537547]/20 rounded-xl p-3 text-center">
                     <div className="text-2xl md:text-3xl font-bold text-green-400 animate-pulse">{timeLeft.seconds.toString().padStart(2, '0')}</div>
                     <div className="text-xs text-gray-400">Secs</div>
                 </div>

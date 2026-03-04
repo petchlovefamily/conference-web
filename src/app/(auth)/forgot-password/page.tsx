@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white flex">
+        <div className="min-h-screen bg-white text-[#6f7e0d] flex">
             {/* Left Side - Decorative */}
             <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
                 {/* Background Effects */}

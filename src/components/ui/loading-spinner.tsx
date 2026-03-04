@@ -16,7 +16,7 @@ const sizeClasses = {
 export function LoadingSpinner({ size = 'md', className, text }: LoadingSpinnerProps) {
     return (
         <div className={cn('flex items-center justify-center gap-2', className)}>
-            <Loader2 className={cn('animate-spin text-emerald-500', sizeClasses[size])} />
+            <Loader2 className={cn('animate-spin text-[#537547]', sizeClasses[size])} />
             {text && <span className="text-gray-400 text-sm">{text}</span>}
         </div>
     );
@@ -25,10 +25,10 @@ export function LoadingSpinner({ size = 'md', className, text }: LoadingSpinnerP
 // Full page loading
 export function PageLoading({ text = 'กำลังโหลด...' }: { text?: string }) {
     return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="min-h-screen bg-white flex items-center justify-center">
             <div className="text-center">
                 <LoadingSpinner size="lg" className="mb-4" />
-                <p className="text-gray-400">{text}</p>
+                <p className="text-gray-500">{text}</p>
             </div>
         </div>
     );
@@ -48,9 +48,9 @@ export function InlineLoading({ text }: { text?: string }) {
 export function LoadingOverlay({ text = 'กำลังดำเนินการ...' }: { text?: string }) {
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-slate-800 rounded-2xl p-8 text-center border border-white/10">
+            <div className="bg-white rounded-2xl p-8 text-center border border-gray-200 shadow-lg">
                 <LoadingSpinner size="lg" className="mb-4" />
-                <p className="text-white">{text}</p>
+                <p className="text-gray-700">{text}</p>
             </div>
         </div>
     );

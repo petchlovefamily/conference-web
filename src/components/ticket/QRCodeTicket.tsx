@@ -94,7 +94,7 @@ export function QRCodeTicket({
             {/* Registration Code */}
             <div className="text-center">
                 <p className="text-xs text-gray-400 mb-1">รหัสลงทะเบียน</p>
-                <p className="font-mono text-lg font-bold text-emerald-400">{regCode}</p>
+                <p className="font-mono text-lg font-bold text-[#537547]">{regCode}</p>
             </div>
 
             {/* Download Button */}
@@ -102,7 +102,7 @@ export function QRCodeTicket({
                 <Button
                     onClick={handleDownload}
                     variant="outline"
-                    className="gap-2 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                    className="gap-2 border-[#537547]/30 text-[#537547] hover:bg-[#537547]/10"
                 >
                     <Download className="w-4 h-4" />
                     Download QR Code

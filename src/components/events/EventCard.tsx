@@ -54,7 +54,7 @@ export function EventCard({ event, variant = 'default' }: EventCardProps) {
         : 0;
 
     return (
-        <div className="group bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-emerald-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10">
+        <div className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-[#537547]/50 transition-all duration-300 hover:shadow-lg hover:shadow-[#537547]/10">
             {/* Image */}
             <div className="relative aspect-[16/10] overflow-hidden">
                 <img
@@ -72,7 +72,7 @@ export function EventCard({ event, variant = 'default' }: EventCardProps) {
 
                 {/* CPE Badge */}
                 {event.cpeCredits && Number(event.cpeCredits) > 0 && (
-                    <div className="absolute top-4 right-4 px-2 py-1 bg-emerald-500/90 rounded-lg text-xs font-medium text-white flex items-center gap-1">
+                    <div className="absolute top-4 right-4 px-2 py-1 bg-[#537547] rounded-lg text-xs font-medium text-white flex items-center gap-1">
                         <Award className="w-3 h-3" />
                         {event.cpeCredits} CPE
                     </div>
@@ -81,45 +81,45 @@ export function EventCard({ event, variant = 'default' }: EventCardProps) {
 
             {/* Content */}
             <div className="p-5">
-                <h3 className="text-lg font-bold mb-2 line-clamp-2 group-hover:text-emerald-400 transition-colors">
+                <h3 className="text-lg font-bold mb-2 line-clamp-2 text-[#6f7e0d] group-hover:text-[#537547] transition-colors">
                     {event.name}
                 </h3>
 
                 {event.description && (
-                    <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                    <p className="text-sm text-gray-500 mb-4 line-clamp-2">
                         {event.description}
                     </p>
                 )}
 
-                <div className="space-y-2 text-sm text-gray-400 mb-4">
+                <div className="space-y-2 text-sm text-gray-500 mb-4">
                     <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-emerald-400" />
+                        <Calendar className="w-4 h-4 text-[#537547]" />
                         <span>{formatDate(event.startDate)}</span>
                     </div>
                     {event.location && (
                         <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-emerald-400" />
+                            <MapPin className="w-4 h-4 text-[#537547]" />
                             <span className="truncate">{event.location}</span>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                     <div>
                         {minPrice > 0 ? (
                             <>
                                 <span className="text-xs text-gray-500">เริ่มต้น</span>
-                                <span className="text-lg font-bold text-emerald-400 ml-1">
+                                <span className="text-lg font-bold text-[#537547] ml-1">
                                     ฿{minPrice.toLocaleString()}
                                 </span>
                             </>
                         ) : (
-                            <span className="text-lg font-bold text-green-400">ฟรี</span>
+                            <span className="text-lg font-bold text-[#537547]">ฟรี</span>
                         )}
                     </div>
                     <Link href={`/events/${event.id}`}>
-                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 rounded-lg">
+                        <Button size="sm" className="bg-[#537547] hover:bg-[#456339] rounded-lg">
                             ดูรายละเอียด
                         </Button>
                     </Link>

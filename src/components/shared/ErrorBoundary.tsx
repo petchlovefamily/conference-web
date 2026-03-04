@@ -39,17 +39,17 @@ export class ErrorBoundary extends Component<Props, State> {
             }
 
             return (
-                <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-                    <div className="max-w-md w-full bg-slate-800 rounded-2xl p-8 text-center border border-white/10">
+                <div className="min-h-screen bg-white flex items-center justify-center p-4">
+                    <div className="max-w-md w-full bg-gray-50 rounded-2xl p-8 text-center border border-gray-200 shadow-lg">
                         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-500/20 flex items-center justify-center">
                             <AlertTriangle className="w-8 h-8 text-red-500" />
                         </div>
 
-                        <h2 className="text-2xl font-bold text-white mb-2">
+                        <h2 className="text-2xl font-bold text-[#6f7e0d] mb-2">
                             เกิดข้อผิดพลาด
                         </h2>
 
-                        <p className="text-gray-400 mb-6">
+                        <p className="text-gray-500 mb-6">
                             ขออภัย เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่อีกครั้ง
                         </p>
 
@@ -64,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
                         <div className="flex gap-3 justify-center">
                             <button
                                 onClick={this.handleReset}
-                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 bg-[#537547] hover:bg-[#456339] text-white rounded-lg transition-colors"
                             >
                                 <RefreshCw className="w-4 h-4" />
                                 ลองใหม่
@@ -72,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
                             <Link
                                 href="/"
-                                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
                             >
                                 <Home className="w-4 h-4" />
                                 หน้าหลัก

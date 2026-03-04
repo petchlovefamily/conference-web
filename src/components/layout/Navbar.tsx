@@ -43,45 +43,45 @@ export function Navbar() {
 
     return (
         <nav className="fixed top-0 left-0 right-0 z-50">
-            {/* Navbar Background */}
-            <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md border-b border-white/10 -z-10" />
+            {/* Navbar Background — #537547 */}
+            <div className="absolute inset-0 bg-[#537547] backdrop-blur-md border-b border-[#537547]/80 -z-10" />
 
             <div className="container mx-auto px-6 h-20 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center text-white font-bold text-lg">
+                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg">
                         ภ
                     </div>
                     <div>
                         <div className="text-lg font-bold text-white">สภาเภสัชกรรม</div>
-                        <div className="text-xs text-emerald-400">Pharmacy Council of Thailand</div>
+                        <div className="text-xs text-white/80">Pharmacy Council of Thailand</div>
                     </div>
                 </Link>
 
                 <div className="hidden md:flex items-center gap-8">
-                    <Link href="/" className="text-sm hover:text-emerald-400 transition-colors">หน้าหลัก</Link>
-                    <Link href="/events" className="text-sm hover:text-emerald-400 transition-colors">งานประชุม</Link>
-                    <Link href="/agenda" className="text-sm hover:text-emerald-400 transition-colors">กำหนดการ</Link>
-                    <Link href="/contact" className="text-sm hover:text-emerald-400 transition-colors">ติดต่อเรา</Link>
+                    <Link href="/" className="text-sm text-white/90 hover:text-white transition-colors">หน้าหลัก</Link>
+                    <Link href="/events" className="text-sm text-white/90 hover:text-white transition-colors">งานประชุม</Link>
+                    <Link href="/agenda" className="text-sm text-white/90 hover:text-white transition-colors">กำหนดการ</Link>
+                    <Link href="/contact" className="text-sm text-white/90 hover:text-white transition-colors">ติดต่อเรา</Link>
                 </div>
 
                 <div className="flex items-center gap-4">
                     {isLoading ? (
                         // Loading state
-                        <div className="w-8 h-8 rounded-full bg-white/10 animate-pulse" />
+                        <div className="w-8 h-8 rounded-full bg-white/20 animate-pulse" />
                     ) : isLoggedIn && user ? (
                         // Logged in - Show user menu
                         <div className="relative">
                             <button
                                 onClick={() => setShowDropdown(!showDropdown)}
-                                className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                                className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/15 hover:bg-white/25 transition-colors"
                             >
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center text-white text-sm font-bold">
+                                <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center text-white text-sm font-bold">
                                     {user.name?.charAt(0).toUpperCase() || 'U'}
                                 </div>
                                 <span className="hidden sm:block text-sm font-medium text-white max-w-[120px] truncate">
                                     {user.name}
                                 </span>
-                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+                                <ChevronDown className={`w-4 h-4 text-white/70 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
                             </button>
 
                             {/* Dropdown Menu */}
@@ -91,12 +91,12 @@ export function Navbar() {
                                         className="fixed inset-0 z-40"
                                         onClick={() => setShowDropdown(false)}
                                     />
-                                    <div className="absolute right-0 mt-2 w-56 bg-slate-800 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
+                                    <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
                                         {/* User Info */}
-                                        <div className="px-4 py-3 border-b border-white/10">
-                                            <p className="text-sm font-medium text-white">{user.name}</p>
-                                            <p className="text-xs text-gray-400">{user.email}</p>
-                                            <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-emerald-500/20 text-emerald-400">
+                                        <div className="px-4 py-3 border-b border-gray-200">
+                                            <p className="text-sm font-medium text-[#6f7e0d]">{user.name}</p>
+                                            <p className="text-xs text-gray-500">{user.email}</p>
+                                            <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-[#537547]/10 text-[#537547]">
                                                 {user.role}
                                             </span>
                                         </div>
@@ -106,7 +106,7 @@ export function Navbar() {
                                             <Link
                                                 href="/profile"
                                                 onClick={() => setShowDropdown(false)}
-                                                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                                                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#6f7e0d] transition-colors"
                                             >
                                                 <User className="w-4 h-4" />
                                                 โปรไฟล์
@@ -117,7 +117,7 @@ export function Navbar() {
                                                 <Link
                                                     href="/dashboard"
                                                     onClick={() => setShowDropdown(false)}
-                                                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                                                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#6f7e0d] transition-colors"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -128,10 +128,10 @@ export function Navbar() {
                                         </div>
 
                                         {/* Logout */}
-                                        <div className="border-t border-white/10 py-1">
+                                        <div className="border-t border-gray-200 py-1">
                                             <button
                                                 onClick={handleLogout}
-                                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                                                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
                                             >
                                                 <LogOut className="w-4 h-4" />
                                                 ออกจากระบบ
@@ -145,16 +145,16 @@ export function Navbar() {
                         // Not logged in - Show login/register buttons
                         <div className="hidden md:flex items-center gap-4">
                             <Link href="/login">
-                                <Button variant="ghost" className="text-white hover:text-emerald-400">เข้าสู่ระบบ</Button>
+                                <Button variant="ghost" className="text-white hover:text-white hover:bg-white/15">เข้าสู่ระบบ</Button>
                             </Link>
                             <Link href="/events">
-                                <Button className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 rounded-full px-6">ลงทะเบียน</Button>
+                                <Button className="bg-white text-[#537547] hover:bg-white/90 border-0 rounded-full px-6 font-semibold">ลงทะเบียน</Button>
                             </Link>
                         </div>
                     )}
                     {/* Mobile Menu Toggle */}
                     <button
-                        className="md:hidden p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+                        className="md:hidden p-2 text-white hover:bg-white/15 rounded-full transition-colors"
                         onClick={() => setIsMobileMenuOpen(true)}
                         aria-label="Open mobile menu"
                         aria-expanded={isMobileMenuOpen}
@@ -166,15 +166,15 @@ export function Navbar() {
 
             {/* Mobile Navigation Drawer */}
             <div
-                className={`fixed inset-0 z-[60] md:hidden bg-slate-950/95 backdrop-blur-xl transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+                className={`fixed inset-0 z-[60] md:hidden bg-[#537547] backdrop-blur-xl transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
                     }`}
             >
                 <div className="flex flex-col h-full">
-                    <div className="flex items-center justify-between p-6 border-b border-white/10">
+                    <div className="flex items-center justify-between p-6 border-b border-white/20">
                         <span className="text-xl font-bold text-white">เมนูหลัก</span>
                         <button
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                            className="p-2 text-white/70 hover:text-white rounded-full hover:bg-white/15 transition-colors"
                             aria-label="Close mobile menu"
                         >
                             <X className="w-6 h-6" />
@@ -182,28 +182,28 @@ export function Navbar() {
                     </div>
 
                     <div className="flex flex-col p-6 gap-4 overflow-y-auto">
-                        <Link href="/" className="text-lg text-gray-300 hover:text-emerald-400 py-2 border-b border-white/5">
+                        <Link href="/" className="text-lg text-white/90 hover:text-white py-2 border-b border-white/10">
                             หน้าหลัก
                         </Link>
-                        <Link href="/events" className="text-lg text-gray-300 hover:text-emerald-400 py-2 border-b border-white/5">
+                        <Link href="/events" className="text-lg text-white/90 hover:text-white py-2 border-b border-white/10">
                             งานประชุม
                         </Link>
-                        <Link href="/agenda" className="text-lg text-gray-300 hover:text-emerald-400 py-2 border-b border-white/5">
+                        <Link href="/agenda" className="text-lg text-white/90 hover:text-white py-2 border-b border-white/10">
                             กำหนดการ
                         </Link>
-                        <Link href="/contact" className="text-lg text-gray-300 hover:text-emerald-400 py-2 border-b border-white/5">
+                        <Link href="/contact" className="text-lg text-white/90 hover:text-white py-2 border-b border-white/10">
                             ติดต่อเรา
                         </Link>
 
                         {!isLoggedIn && (
                             <div className="mt-4 flex flex-col gap-3">
                                 <Link href="/login">
-                                    <Button variant="outline" className="w-full justify-center border-white/20 hover:bg-white/10 text-white">
+                                    <Button variant="outline" className="w-full justify-center border-white/30 hover:bg-white/15 text-white">
                                         เข้าสู่ระบบ
                                     </Button>
                                 </Link>
                                 <Link href="/register">
-                                    <Button className="w-full justify-center bg-emerald-500 hover:bg-emerald-600 text-white">
+                                    <Button className="w-full justify-center bg-white text-[#537547] hover:bg-white/90 font-semibold">
                                         ลงทะเบียน
                                     </Button>
                                 </Link>
@@ -211,14 +211,14 @@ export function Navbar() {
                         )}
 
                         {isLoggedIn && user && (
-                            <div className="mt-auto pt-6 border-t border-white/10">
+                            <div className="mt-auto pt-6 border-t border-white/20">
                                 <div className="flex items-center gap-3 px-2 mb-6">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center text-white font-bold">
+                                    <div className="w-10 h-10 rounded-full bg-white/25 flex items-center justify-center text-white font-bold">
                                         {user.name?.charAt(0).toUpperCase() || 'U'}
                                     </div>
                                     <div>
                                         <div className="text-white font-medium">{user.name}</div>
-                                        <div className="text-xs text-gray-400 capitalize">{user.role}</div>
+                                        <div className="text-xs text-white/70 capitalize">{user.role}</div>
                                     </div>
                                 </div>
 
@@ -226,7 +226,7 @@ export function Navbar() {
                                     <Link
                                         href="/profile"
                                         onClick={() => setIsMobileMenuOpen(false)}
-                                        className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/5 rounded-lg transition-colors"
+                                        className="flex items-center gap-3 px-4 py-3 text-white/90 hover:bg-white/10 rounded-lg transition-colors"
                                     >
                                         <User className="w-5 h-5" />
                                         โปรไฟล์
@@ -236,7 +236,7 @@ export function Navbar() {
                                         <Link
                                             href="/dashboard"
                                             onClick={() => setIsMobileMenuOpen(false)}
-                                            className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/5 rounded-lg transition-colors"
+                                            className="flex items-center gap-3 px-4 py-3 text-white/90 hover:bg-white/10 rounded-lg transition-colors"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -250,7 +250,7 @@ export function Navbar() {
                                             handleLogout();
                                             setIsMobileMenuOpen(false);
                                         }}
-                                        className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors w-full text-left"
+                                        className="flex items-center gap-3 px-4 py-3 text-red-200 hover:bg-red-500/20 rounded-lg transition-colors w-full text-left"
                                     >
                                         <LogOut className="w-5 h-5" />
                                         ออกจากระบบ
