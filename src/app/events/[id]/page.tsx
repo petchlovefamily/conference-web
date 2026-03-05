@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { getEventById } from '@/lib/services';
+import { eventsApi, type ApiEvent, type ApiTicketType, type ApiSession, type ApiSpeaker, type ApiEventImage, type ApiEventAttachment } from '@/lib/api/events';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,10 @@ import { CountdownTimer } from '@/components/ui/countdown-timer';
 import { SpeakerMarquee } from '@/components/ui/speaker-marquee';
 import { Calendar, MapPin, Clock, Share2, ArrowLeft, Users, CheckCircle, Award, Ticket, X, ChevronLeft, ChevronRight, Images, Check } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Event, Round } from '@/types';
 import { useScrollAnimation } from '@/hooks/use-scroll-animation';
+import NextImage from 'next/image';
 
 // Helper function to format date
 const formatDate = (dateStr: string | undefined): string => {
@@ -31,7 +31,7 @@ const formatDate = (dateStr: string | undefined): string => {
 export default function EventDetailPage() {
     const params = useParams();
     const id = params.id as string;
-    const [selectedRound, setSelectedRound] = useState<string | null>(null);
+    // Removed rounds-based state — using event.startDate/endDate directly
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [mounted, setMounted] = useState(false);
@@ -85,11 +85,11 @@ export default function EventDetailPage() {
         }
     });
 
-    const { data: event, isLoading, isError } = useQuery({
+    const { data: apiData, isLoading, isError, error } = useQuery({
         queryKey: ['event', id],
         queryFn: async () => {
-            const result = await getEventById(id);
-            if (!result) {
+            const result = await eventsApi.get(id);
+            if (!result?.event) {
                 throw new Error('Event not found');
             }
             return result;
@@ -97,6 +97,22 @@ export default function EventDetailPage() {
         enabled: !!id,
         retry: 1,
     });
+
+    const event = apiData?.event;
+    const eventSessions = apiData?.sessions || [];
+    const eventTicketTypes = apiData?.ticketTypes || [];
+    const eventImages = apiData?.images || [];
+    const eventAttachments = apiData?.attachments || [];
+    const eventSpeakers = apiData?.speakers || [];
+
+    // Map speakers for SpeakerMarquee component
+    const mappedSpeakers = useMemo(() => eventSpeakers.map(s => ({
+        id: String(s.speakerId),
+        name: `${s.firstName} ${s.lastName}`,
+        title: s.position || s.speakerType,
+        organization: s.organization || '',
+        imageUrl: s.photoUrl || undefined,
+    })), [eventSpeakers]);
 
     // Toggle session selection
     const toggleSession = (sessionId: string) => {
@@ -164,71 +180,65 @@ export default function EventDetailPage() {
         return Math.max(0, price - promoDiscount.value);
     };
 
-    // Auto-detect the best ticket for current user (like Eventpass)
-    // Priority: Early Bird (if available and within sale period) > Member (if logged in) > Public
+    const currentRound = null; // rounds removed — use event.startDate/endDate/location directly
+
+    // Auto-detect the best ticket for current user
     const getAutoSelectedTicket = () => {
-        if (!event?.ticketTypes || event.ticketTypes.length === 0) return null;
+        if (eventTicketTypes.length === 0) return null;
 
         // Filter out add-on tickets
-        const primaryTickets = event.ticketTypes.filter(t => t.ticketCategory !== 'addon');
+        const primaryTickets = eventTicketTypes.filter((t: ApiTicketType) => t.category !== 'addon');
         if (primaryTickets.length === 0) return null;
 
         const now = new Date();
-        const eventStart = event.startDate ? new Date(event.startDate) : null;
-        const sevenDaysBeforeEvent = eventStart ? new Date(eventStart.getTime() - 7 * 24 * 60 * 60 * 1000) : null;
 
         // Find tickets by category from primary tickets only
-        const earlyBirdTicket = primaryTickets.find(t =>
+        const earlyBirdTicket = primaryTickets.find((t: ApiTicketType) =>
             t.name.toLowerCase().includes('early') || t.name.toLowerCase().includes('bird')
         );
-        const memberTicket = primaryTickets.find(t =>
+        const memberTicket = primaryTickets.find((t: ApiTicketType) =>
             t.name.toLowerCase().includes('member') || t.name.toLowerCase().includes('สมาชิก')
         );
-        const publicTicket = primaryTickets.find(t =>
+        const publicTicket = primaryTickets.find((t: ApiTicketType) =>
             t.name.toLowerCase().includes('public') || t.name.toLowerCase().includes('ทั่วไป') || t.name.toLowerCase().includes('general')
         );
 
-        // Check Early Bird availability (before 7 days of event OR within sale period)
+        // If early bird exists and is within sale period, return it
         if (earlyBirdTicket) {
-            const salesStart = earlyBirdTicket.salesStart ? new Date(earlyBirdTicket.salesStart) : null;
-            const salesEnd = earlyBirdTicket.salesEnd ? new Date(earlyBirdTicket.salesEnd) : sevenDaysBeforeEvent;
+            const salesStart = earlyBirdTicket.saleStartDate ? new Date(earlyBirdTicket.saleStartDate) : null;
+            const salesEnd = earlyBirdTicket.saleEndDate ? new Date(earlyBirdTicket.saleEndDate) : null; // Changed from sevenDaysBeforeEvent
 
             const isWithinSalePeriod = (!salesStart || now >= salesStart) && (!salesEnd || now <= salesEnd);
-            const hasAvailability = earlyBirdTicket.available === undefined || earlyBirdTicket.available > 0;
+            const hasAvailability = (earlyBirdTicket.quota - earlyBirdTicket.soldCount) > 0;
 
             if (isWithinSalePeriod && hasAvailability) {
                 return earlyBirdTicket;
             }
         }
 
-        // If user is member, return member ticket
-        if (userRole === 'member' && memberTicket) {
-            const hasAvailability = memberTicket.available === undefined || memberTicket.available > 0;
+        // If user is member, return member ticket (TODO: get userRole from auth context)
+        const currentUserRole = '' as string; // Temporarily empty string until auth is integrated fully on frontend
+        if (currentUserRole === 'member' && memberTicket) {
+            const hasAvailability = (memberTicket.quota - memberTicket.soldCount) > 0;
             if (hasAvailability) {
                 return memberTicket;
             }
         }
 
-        // Default to public ticket
-        if (publicTicket) {
-            return publicTicket;
-        }
-
-        // Fallback to first available primary ticket
-        return primaryTickets[0];
+        // Otherwise return public ticket
+        return publicTicket || primaryTickets[0] || null;
     };
 
     if (isLoading) return <div className="min-h-screen bg-white text-[#6f7e0d] flex items-center justify-center">Loading event details...</div>;
     if (isError || !event) return <div className="min-h-screen bg-white text-[#6f7e0d] flex items-center justify-center">Event not found</div>;
 
-    const currentRound = event.rounds?.find((r: Round) => r.id === selectedRound) || event.rounds?.[0];
     const autoSelectedTicket = getAutoSelectedTicket();
 
     // Get add-on tickets
-    const addonTickets = event.ticketTypes?.filter(t => t.ticketCategory === 'addon') || [];
-    const selectedAddonTickets = event.ticketTypes?.filter(t => selectedAddons.includes(t.id)) || [];
-    const addonsTotal = selectedAddonTickets.reduce((sum, t) => sum + (t.price || 0), 0);
-    const basePrice = autoSelectedTicket?.price || 0;
+    const addonTickets = eventTicketTypes.filter((t: ApiTicketType) => t.category === 'addon');
+    const selectedAddonTickets = eventTicketTypes.filter((t: ApiTicketType) => selectedAddons.includes(String(t.id)));
+    const addonsTotal = selectedAddonTickets.reduce((sum: number, t: ApiTicketType) => sum + Number(t.price || 0), 0);
+    const basePrice = autoSelectedTicket ? Number(autoSelectedTicket.price) : 0;
     const totalPrice = getDiscountedPrice(basePrice) + addonsTotal;
 
     return (
@@ -238,7 +248,13 @@ export default function EventDetailPage() {
             {/* Hero Section - Responsive */}
             <section className="relative h-[50vh] sm:h-[55vh] md:h-[60vh] min-h-[400px] md:min-h-[500px] w-full">
                 <div className="absolute inset-0">
-                    <img src={event.coverImage} alt={event.name} className="w-full h-full object-cover" />
+                    <NextImage
+                        src={event.imageUrl || 'https://placehold.co/1200x600?text=Event'}
+                        alt={event.eventName}
+                        fill
+                        className="object-cover"
+                        priority
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                 </div>
 
@@ -251,7 +267,7 @@ export default function EventDetailPage() {
                         {/* Badges */}
                         <div className={`flex flex-wrap gap-2 sm:gap-3 mb-3 sm:mb-4 scroll-animate fade-up stagger-1 ${mounted ? 'is-visible' : ''}`}>
                             <span className="bg-white/20 text-white border border-white/30 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium backdrop-blur-md">
-                                {event.eventType === 'single' ? 'One Day Event' : 'Multi-Day Conference'}
+                                {event.eventType === 'single_room' ? 'One Day Event' : 'Multi-Day Conference'}
                             </span>
                             <span className="bg-white/20 text-white border border-white/30 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium backdrop-blur-md">
                                 {event.cpeCredits} CPE Credits
@@ -260,7 +276,7 @@ export default function EventDetailPage() {
 
                         {/* Title */}
                         <h1 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 sm:mb-4 leading-tight max-w-4xl text-white scroll-animate fade-up stagger-2 ${mounted ? 'is-visible' : ''}`}>
-                            {event.name}
+                            {event.eventName}
                         </h1>
 
                         {/* Meta Info */}
@@ -268,12 +284,12 @@ export default function EventDetailPage() {
                             <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-white flex-shrink-0" />
                                 <span className="truncate">
-                                    {currentRound?.date ? new Date(currentRound.date).toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBA'}
+                                    {event.startDate ? new Date(event.startDate).toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBA'}
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-white flex-shrink-0" />
-                                <span className="truncate">{currentRound?.location || 'TBA'}</span>
+                                <span className="truncate">{event.location || 'TBA'}</span>
                             </div>
                         </div>
                     </div>
@@ -285,8 +301,8 @@ export default function EventDetailPage() {
                 {/* Mobile: Sidebar First (for important info) */}
                 <div className="lg:hidden space-y-4 mb-6">
                     {/* Countdown Timer */}
-                    {currentRound?.date && (
-                        <CountdownTimer targetDate={currentRound.date} />
+                    {event.startDate && (
+                        <CountdownTimer targetDate={event.startDate} />
                     )}
 
                     {/* Quick Info Cards */}
@@ -304,16 +320,16 @@ export default function EventDetailPage() {
                             </div>
                         </div>
 
-                        {/* Tickets */}
+                        {/* Capacity */}
                         <div className="bg-[#537547]/10 border border-[#537547]/20 rounded-xl p-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg bg-[#537547]/10 flex items-center justify-center flex-shrink-0">
                                     <Ticket className="w-5 h-5 text-[#537547]" />
                                 </div>
                                 <div>
-                                    <div className="text-xs text-[#537547]">ที่นั่งเหลือ</div>
+                                    <div className="text-xs text-[#537547]">ที่นั่ง</div>
                                     <div className="text-xl font-bold text-gray-900">
-                                        {currentRound ? currentRound.capacity - currentRound.registered : 0}
+                                        {event.maxCapacity}
                                     </div>
                                 </div>
                             </div>
@@ -325,10 +341,10 @@ export default function EventDetailPage() {
                         <div>
                             <div className="text-xs text-gray-500">ราคา</div>
                             <div className="text-2xl font-bold text-[#537547]">
-                                ฿{(event.price ?? 0).toLocaleString()}
+                                ฿{basePrice.toLocaleString()}
                             </div>
                         </div>
-                        <Link href={`/checkout/${event.id}?round=${selectedRound || currentRound?.id}`}>
+                        <Link href={`/checkout/${event.id}`}>
                             <Button className="bg-[#537547] hover:bg-[#456339] text-white px-6 h-12 font-bold rounded-xl transition-transform hover:scale-105 active:scale-95">
                                 จองตั๋ว
                             </Button>
@@ -350,12 +366,12 @@ export default function EventDetailPage() {
                         </section>
 
                         {/* Sessions Section - Only for multi_session events */}
-                        {event.sessions && event.sessions.length > 0 && (
+                        {eventSessions.length > 0 && (
                             <section ref={sessionsRef} className={`bg-white border border-[#537547]/20 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm scroll-animate fade-up ${sessionsVisible ? 'is-visible' : ''}`}>
                                 <div className="flex items-center justify-between mb-4">
                                     <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-[#537547]">
                                         <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
-                                        เลือก Sessions ({selectedSessions.length}/{event.sessions.length})
+                                        เลือก Sessions ({selectedSessions.length}/{eventSessions.length})
                                     </h2>
                                     {selectedSessions.length > 0 && (
                                         <button
@@ -367,12 +383,12 @@ export default function EventDetailPage() {
                                     )}
                                 </div>
                                 <div className="space-y-3">
-                                    {event.sessions.map((session) => {
-                                        const isSelected = selectedSessions.includes(session.id);
+                                    {eventSessions.map((session: ApiSession) => {
+                                        const isSelected = selectedSessions.includes(String(session.id));
                                         return (
                                             <div
                                                 key={session.id}
-                                                onClick={() => toggleSession(session.id)}
+                                                onClick={() => toggleSession(String(session.id))}
                                                 className={cn(
                                                     "cursor-pointer rounded-xl p-4 border transition-all",
                                                     isSelected
@@ -415,12 +431,6 @@ export default function EventDetailPage() {
                                                                     {session.room}
                                                                 </span>
                                                             )}
-                                                            {session.speakers && (
-                                                                <span className="flex items-center gap-1">
-                                                                    <Users className="w-3 h-3 sm:w-4 sm:h-4" />
-                                                                    {session.speakers}
-                                                                </span>
-                                                            )}
                                                         </div>
                                                     </div>
 
@@ -446,19 +456,19 @@ export default function EventDetailPage() {
                             <div className="grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
                                 {/* Venue Image - Clickable Gallery Preview */}
                                 <button
-                                    onClick={() => { if (event.images && event.images.length > 0) { setLightboxIndex(0); setLightboxOpen(true); } }}
+                                    onClick={() => { if (eventImages.length > 0) { setLightboxIndex(0); setLightboxOpen(true); } }}
                                     className={cn(
                                         "rounded-xl sm:rounded-2xl overflow-hidden h-48 sm:h-56 md:h-64 relative border border-gray-200 group text-left",
-                                        event.images && event.images.length > 0 && "cursor-pointer hover:border-[#537547]/50"
+                                        eventImages.length > 0 && "cursor-pointer hover:border-[#537547]/50"
                                     )}
-                                    disabled={!event.images || event.images.length === 0}
+                                    disabled={eventImages.length === 0}
                                 >
                                     <img
-                                        src={event.images?.[0]?.imageUrl || event.venueImage || "https://placehold.co/600x400?text=Venue"}
+                                        src={eventImages[0]?.imageUrl || event.imageUrl || "https://placehold.co/600x400?text=Venue"}
                                         alt="Venue"
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                     />
-                                    {event.images && event.images.length > 0 && (
+                                    {eventImages.length > 0 && (
                                         <>
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                 <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
@@ -466,16 +476,16 @@ export default function EventDetailPage() {
                                                     <span className="text-white font-medium text-sm">ดูรูปภาพทั้งหมด</span>
                                                 </div>
                                             </div>
-                                            {event.images.length > 1 && (
+                                            {eventImages.length > 1 && (
                                                 <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full text-xs text-white">
-                                                    +{event.images.length - 1} รูป
+                                                    +{eventImages.length - 1} รูป
                                                 </div>
                                             )}
                                         </>
                                     )}
                                 </button>
                                 <div className="flex flex-col justify-center space-y-3 sm:space-y-4">
-                                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">{currentRound?.location || 'TBA'}</h3>
+                                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">{event.location || 'TBA'}</h3>
                                     <div className="space-y-2 sm:space-y-3">
                                         <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
                                             <CheckCircle className="w-4 h-4 text-[#537547] flex-shrink-0" />
@@ -496,7 +506,7 @@ export default function EventDetailPage() {
                                         asChild
                                     >
                                         <a
-                                            href={currentRound?.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentRound?.location || '')}`}
+                                            href={event.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location || '')}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                         >
@@ -507,11 +517,11 @@ export default function EventDetailPage() {
                             </div>
 
                             {/* Event Attachments */}
-                            {event.attachments && event.attachments.length > 0 && (
+                            {eventAttachments.length > 0 && (
                                 <div className="mt-6 pt-6 border-t border-gray-200">
                                     <h3 className="text-lg font-semibold mb-3 text-gray-700">เอกสารประกอบ</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {event.attachments.map((attachment) => (
+                                        {eventAttachments.map((attachment: ApiEventAttachment) => (
                                             <a
                                                 key={attachment.id}
                                                 href={attachment.fileUrl}
@@ -531,13 +541,13 @@ export default function EventDetailPage() {
                         </section>
 
                         {/* Speakers */}
-                        {event.speakers && event.speakers.length > 0 && (
+                        {mappedSpeakers.length > 0 && (
                             <section ref={speakersRef} className={`overflow-hidden scroll-animate fade-up ${speakersVisible ? 'is-visible' : ''}`}>
                                 <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2 text-[#6f7e0d]">
                                     <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#537547]" />
-                                    ผู้บรรยาย ({event.speakers.length} ท่าน)
+                                    ผู้บรรยาย ({mappedSpeakers.length} ท่าน)
                                 </h2>
-                                <SpeakerMarquee speakers={event.speakers} />
+                                <SpeakerMarquee speakers={mappedSpeakers} />
                             </section>
                         )}
                     </div>
@@ -546,8 +556,8 @@ export default function EventDetailPage() {
                     <div ref={sidebarRef} className="hidden lg:block relative">
                         <div className={`sticky top-24 space-y-6 scroll-animate slide-right ${sidebarVisible ? 'is-visible' : ''}`}>
                             {/* Countdown Timer */}
-                            {currentRound?.date && (
-                                <CountdownTimer targetDate={currentRound.date} />
+                            {event.startDate && (
+                                <CountdownTimer targetDate={event.startDate} />
                             )}
 
                             {/* CPE Credits Badge */}
@@ -571,22 +581,11 @@ export default function EventDetailPage() {
                                         <Ticket className="w-7 h-7 text-[#537547]" />
                                     </div>
                                     <div>
-                                        <div className="text-sm text-[#537547]">ที่นั่งเหลือ</div>
+                                        <div className="text-sm text-[#537547]">ที่นั่ง</div>
                                         <div className="text-3xl font-bold text-gray-900">
-                                            {currentRound ? currentRound.capacity - currentRound.registered : 0}
-                                            <span className="text-lg font-normal text-gray-500"> / {currentRound?.capacity || 0}</span>
+                                            {event.maxCapacity}
                                         </div>
                                     </div>
-                                </div>
-                                {/* Progress bar */}
-                                <div className="mt-3">
-                                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-[#537547] rounded-full transition-all"
-                                            style={{ width: `${currentRound ? (currentRound.registered / currentRound.capacity) * 100 : 0}%` }}
-                                        />
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-2">{currentRound ? Math.round((currentRound.registered / currentRound.capacity) * 100) : 0}% sold</p>
                                 </div>
                             </div>
 
@@ -618,25 +617,23 @@ export default function EventDetailPage() {
                                             <div className="flex items-center justify-between">
                                                 <div>
                                                     <div className="font-bold text-gray-900 text-lg">{autoSelectedTicket.name}</div>
-                                                    {autoSelectedTicket.available !== undefined && (
-                                                        <div className="text-xs text-gray-500 mt-1">
-                                                            เหลือ {autoSelectedTicket.available} ที่นั่ง
-                                                        </div>
-                                                    )}
+                                                    <div className="text-xs text-gray-500 mt-1">
+                                                        เหลือ {autoSelectedTicket.quota - autoSelectedTicket.soldCount} ที่นั่ง
+                                                    </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    {promoApplied && getDiscountedPrice(autoSelectedTicket.price) < autoSelectedTicket.price ? (
+                                                    {promoApplied && getDiscountedPrice(Number(autoSelectedTicket.price)) < Number(autoSelectedTicket.price) ? (
                                                         <>
                                                             <span className="text-gray-500 line-through text-sm block">
-                                                                ฿{autoSelectedTicket.price.toLocaleString()}
+                                                                ฿{Number(autoSelectedTicket.price).toLocaleString()}
                                                             </span>
                                                             <span className="text-2xl font-bold text-[#537547]">
-                                                                ฿{getDiscountedPrice(autoSelectedTicket.price).toLocaleString()}
+                                                                ฿{getDiscountedPrice(Number(autoSelectedTicket.price)).toLocaleString()}
                                                             </span>
                                                         </>
                                                     ) : (
                                                         <span className="text-2xl font-bold text-[#537547]">
-                                                            ฿{autoSelectedTicket.price.toLocaleString()}
+                                                            ฿{Number(autoSelectedTicket.price).toLocaleString()}
                                                         </span>
                                                     )}
                                                 </div>
@@ -653,12 +650,12 @@ export default function EventDetailPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 {addonTickets.map(addon => {
-                                                    const isSelected = selectedAddons.includes(addon.id);
-                                                    const isSoldOut = addon.available !== undefined && addon.available <= 0;
+                                                    const isSelected = selectedAddons.includes(String(addon.id));
+                                                    const isSoldOut = (addon.quota - addon.soldCount) <= 0;
                                                     return (
                                                         <button
                                                             key={addon.id}
-                                                            onClick={() => !isSoldOut && toggleAddon(addon.id)}
+                                                            onClick={() => !isSoldOut && toggleAddon(String(addon.id))}
                                                             disabled={isSoldOut}
                                                             className={cn(
                                                                 "w-full p-3 rounded-lg border text-left transition-all",
@@ -680,12 +677,12 @@ export default function EventDetailPage() {
                                                                         <div className="text-xs text-gray-500">
                                                                             {isSoldOut
                                                                                 ? <span className="text-red-400">เต็มแล้ว</span>
-                                                                                : `เหลือ ${addon.available ?? addon.quota} ที่นั่ง`
+                                                                                : `เหลือ ${addon.quota - addon.soldCount} ที่นั่ง`
                                                                             }
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                <span className="text-[#537547] font-bold">+฿{addon.price.toLocaleString()}</span>
+                                                                <span className="text-[#537547] font-bold">+฿{Number(addon.price).toLocaleString()}</span>
                                                             </div>
                                                         </button>
                                                     );
@@ -699,10 +696,10 @@ export default function EventDetailPage() {
                                         <div className="bg-[#537547]/10 p-4 rounded-xl border border-[#537547]/20">
                                             {selectedAddonTickets.length > 0 && (
                                                 <div className="mb-2 pb-2 border-b border-gray-200 space-y-1">
-                                                    {selectedAddonTickets.map(addon => (
+                                                    {selectedAddonTickets.map((addon: ApiTicketType) => (
                                                         <div key={addon.id} className="flex justify-between text-sm">
                                                             <span className="text-[#537547]">+ {addon.name}</span>
-                                                            <span className="text-[#537547]">฿{addon.price.toLocaleString()}</span>
+                                                            <span className="text-[#537547]">฿{Number(addon.price).toLocaleString()}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -810,10 +807,10 @@ export default function EventDetailPage() {
                         <div>
                             <div className="text-xs text-gray-500">เริ่มต้นที่</div>
                             <div className="text-xl font-bold text-[#537547]">
-                                ฿{(event.price ?? 0).toLocaleString()}
+                                ฿{basePrice.toLocaleString()}
                             </div>
                         </div>
-                        <Link href={`/checkout/${event.id}?round=${selectedRound || currentRound?.id}`} className="flex-1 max-w-[200px]">
+                        <Link href={`/checkout/${event.id}`} className="flex-1 max-w-[200px]">
                             <Button className="w-full bg-[#537547] hover:bg-[#456339] text-white h-12 font-bold rounded-xl transition-transform hover:scale-105 active:scale-95">
                                 จองตั๋วเลย
                             </Button>
@@ -828,14 +825,14 @@ export default function EventDetailPage() {
             <Footer />
 
             {/* Lightbox Modal */}
-            {lightboxOpen && event?.images && (
+            {lightboxOpen && eventImages.length > 0 && (
                 <div
                     className="fixed inset-0 z-50 bg-black/95 flex flex-col"
                     onClick={() => setLightboxOpen(false)}
                 >
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 text-white">
-                        <span className="text-sm">{lightboxIndex + 1} / {event.images.length}</span>
+                        <span className="text-sm">{lightboxIndex + 1} / {eventImages.length}</span>
                         <button
                             onClick={() => setLightboxOpen(false)}
                             className="p-2 hover:bg-white/10 rounded-full transition-colors"
@@ -847,9 +844,9 @@ export default function EventDetailPage() {
                     {/* Main Image */}
                     <div className="flex-1 flex items-center justify-center px-4 relative" onClick={(e) => e.stopPropagation()}>
                         {/* Previous Button */}
-                        {event.images.length > 1 && (
+                        {eventImages.length > 1 && (
                             <button
-                                onClick={() => setLightboxIndex(prev => prev === 0 ? event.images!.length - 1 : prev - 1)}
+                                onClick={() => setLightboxIndex(prev => prev === 0 ? eventImages.length - 1 : prev - 1)}
                                 className="absolute left-4 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
                             >
                                 <ChevronLeft className="w-6 h-6 text-white" />
@@ -857,15 +854,15 @@ export default function EventDetailPage() {
                         )}
 
                         <img
-                            src={event.images[lightboxIndex].imageUrl}
-                            alt={event.images[lightboxIndex].caption || 'Venue photo'}
+                            src={eventImages[lightboxIndex].imageUrl}
+                            alt={eventImages[lightboxIndex].caption || 'Venue photo'}
                             className="max-h-[70vh] max-w-full object-contain rounded-lg"
                         />
 
                         {/* Next Button */}
-                        {event.images.length > 1 && (
+                        {eventImages.length > 1 && (
                             <button
-                                onClick={() => setLightboxIndex(prev => prev === event.images!.length - 1 ? 0 : prev + 1)}
+                                onClick={() => setLightboxIndex(prev => prev === eventImages.length - 1 ? 0 : prev + 1)}
                                 className="absolute right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
                             >
                                 <ChevronRight className="w-6 h-6 text-white" />
@@ -874,9 +871,9 @@ export default function EventDetailPage() {
                     </div>
 
                     {/* Thumbnails */}
-                    {event.images.length > 1 && (
+                    {eventImages.length > 1 && (
                         <div className="p-4 flex justify-center gap-2 overflow-x-auto" onClick={(e) => e.stopPropagation()}>
-                            {event.images.map((img, idx) => (
+                            {eventImages.map((img: ApiEventImage, idx: number) => (
                                 <button
                                     key={img.id}
                                     onClick={() => setLightboxIndex(idx)}
@@ -891,7 +888,8 @@ export default function EventDetailPage() {
                         </div>
                     )}
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

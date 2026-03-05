@@ -6,13 +6,13 @@ import { Calendar, ArrowRight, MapPin, Award, ChevronRight, Shield } from 'lucid
 import Link from 'next/link';
 import { useCounter } from '@/hooks/use-counter';
 import { useEffect, useState } from 'react';
-import { Event } from '@/types';
+import { ApiEvent } from '@/lib/api/events';
 
 interface HeroSectionProps {
     yearsCount: number;
     membersCount: number;
     eventsCount: number;
-    featuredEvent?: Event;
+    featuredEvent?: ApiEvent;
 }
 
 export function HeroSection({ yearsCount, membersCount, eventsCount, featuredEvent }: HeroSectionProps) {
@@ -109,8 +109,8 @@ export function HeroSection({ yearsCount, membersCount, eventsCount, featuredEve
                         {featuredEvent ? (
                             <div className="relative rounded-2xl overflow-hidden border border-gray-200 shadow-xl w-full aspect-[4/3] group">
                                 <Image
-                                    src={featuredEvent.coverImage || featuredEvent.image || 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop'}
-                                    alt={featuredEvent.name || 'Conference'}
+                                    src={featuredEvent.imageUrl || 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop'}
+                                    alt={featuredEvent.eventName || 'Conference'}
                                     fill
                                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                                     priority
@@ -124,7 +124,7 @@ export function HeroSection({ yearsCount, membersCount, eventsCount, featuredEve
                                         <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                                         เปิดรับสมัครแล้ว
                                     </div>
-                                    <h3 className="text-2xl font-bold mb-2 text-white">{featuredEvent.name}</h3>
+                                    <h3 className="text-2xl font-bold mb-2 text-white">{featuredEvent.eventName}</h3>
                                     <div className="flex flex-wrap gap-4 text-sm text-gray-300 mb-4">
                                         <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {formatDate(featuredEvent.startDate)}</span>
                                         <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {featuredEvent.location || 'สถานที่จัดงาน'}</span>

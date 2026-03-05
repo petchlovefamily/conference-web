@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { Calendar, MapPin, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Event } from '@/types';
+import { ApiEvent } from '@/lib/api/events';
 import { useScrollAnimation } from '@/hooks/use-scroll-animation';
 
 interface FeaturedEventsProps {
-    events: Event[];
+    events: ApiEvent[];
 }
 
 export function FeaturedEvents({ events }: FeaturedEventsProps) {
@@ -42,11 +42,10 @@ export function FeaturedEvents({ events }: FeaturedEventsProps) {
                                     <div className="aspect-video relative overflow-hidden">
                                         <img
                                             src={
-                                                event.coverImage ||
-                                                event.image ||
+                                                event.imageUrl ||
                                                 `https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?q=80&w=800&auto=format&fit=crop`
                                             }
-                                            alt={event.name || event.title}
+                                            alt={event.eventName || 'Event'}
                                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                         />
                                         <div className="absolute top-3 right-3 bg-[#537547] text-white px-3 py-1 rounded-full text-sm font-medium">
@@ -55,12 +54,12 @@ export function FeaturedEvents({ events }: FeaturedEventsProps) {
                                     </div>
                                     <div className="p-5">
                                         <h3 className="text-lg font-bold mb-2 text-[#6f7e0d] group-hover:text-[#537547] transition-colors line-clamp-2">
-                                            {event.name || event.title}
+                                            {event.eventName || 'Event'}
                                         </h3>
                                         <div className="flex flex-wrap gap-3 text-sm text-gray-500">
                                             <span className="flex items-center gap-1">
                                                 <Calendar className="w-4 h-4" />
-                                                {new Date(event.startDate || event.date || '').toLocaleDateString('th-TH', {
+                                                {new Date(event.startDate || '').toLocaleDateString('th-TH', {
                                                     day: 'numeric',
                                                     month: 'short',
                                                     year: 'numeric',
@@ -68,7 +67,7 @@ export function FeaturedEvents({ events }: FeaturedEventsProps) {
                                             </span>
                                             <span className="flex items-center gap-1">
                                                 <MapPin className="w-4 h-4" />
-                                                {event.venue || event.location || 'TBA'}
+                                                {event.location || 'TBA'}
                                             </span>
                                         </div>
                                     </div>

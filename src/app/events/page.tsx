@@ -4,11 +4,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
-import { getEvents } from '@/lib/services';
+import { eventsApi, type ApiEvent } from '@/lib/api/events';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, MapPin, Clock, ArrowRight, Send, Search, Filter, X, Award } from 'lucide-react';
 import Link from 'next/link';
-import { Event } from '@/types';
 import { useScrollAnimation } from '@/hooks/use-scroll-animation';
 
 export default function EventsPage() {
@@ -27,28 +26,32 @@ export default function EventsPage() {
 
     const { data: events, isLoading } = useQuery({
         queryKey: ['events'],
-        queryFn: getEvents,
+        queryFn: async () => {
+            const res = await eventsApi.list();
+            return res.events;
+        },
     });
 
     // Get unique categories
     const categories = useMemo(() => {
         if (!events) return [];
-        const cats = events.map((e: Event) => e.category).filter((c): c is string => !!c);
+        const cats = events.map((e: ApiEvent) => e.category).filter((c): c is string => !!c);
         return ['all', ...Array.from(new Set(cats))];
     }, [events]);
 
     // Filter events based on search and category
     const filteredEvents = useMemo(() => {
         if (!events) return [];
-        return events.filter((event: Event) => {
+        return events.filter((event: ApiEvent) => {
             const searchLower = searchQuery.toLowerCase();
-            const eventTitle = event.title || event.name || '';
+            const eventTitle = event.eventName || '';
             const eventDesc = event.description || '';
+            const eventLocation = event.location || '';
 
             const matchesSearch =
                 eventTitle.toLowerCase().includes(searchLower) ||
                 eventDesc.toLowerCase().includes(searchLower) ||
-                event.rounds?.some((r) => r.location?.toLowerCase().includes(searchLower));
+                eventLocation.toLowerCase().includes(searchLower);
 
             const matchesCategory = selectedCategory === 'all' || event.category === selectedCategory;
 
@@ -194,7 +197,7 @@ export default function EventsPage() {
                                     ล้างการค้นหา
                                 </button>
                             </div>
-                        ) : paginatedEvents.map((event: Event, index: number) => (
+                        ) : paginatedEvents.map((event: ApiEvent, index: number) => (
                             <div
                                 key={event.id}
                                 className={`group bg-white border border-gray-200 rounded-2xl p-6 md:p-8 hover:border-[#537547]/50 hover:shadow-xl transition-all duration-500 scroll-animate fade-up stagger-${index + 1} ${eventsVisible ? 'is-visible' : ''}`}
@@ -203,26 +206,30 @@ export default function EventsPage() {
                                 <div className="flex flex-col md:flex-row gap-8 items-center">
                                     {/* Thumbnail */}
                                     <div className="w-full md:w-64 h-48 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 relative">
-                                        <img src={event.coverImage} alt={event.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                        <img src={event.imageUrl || 'https://placehold.co/600x400?text=Event'} alt={event.eventName} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                         <div className="absolute top-3 left-3 bg-black/60 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold text-white border border-white/10">
-                                            {event.eventType === 'single' ? 'Single Session' : 'Conference'}
+                                            {event.eventType === 'single_room' ? 'Single Session' : 'Conference'}
                                         </div>
                                         {/* CPE Credits badge */}
-                                        <div className="absolute top-3 right-3 bg-[#537547]/90 backdrop-blur px-2 py-1 rounded-lg text-xs font-bold text-white flex items-center gap-1">
-                                            <Award className="w-3 h-3" />
-                                            {event.cpeCredits} CPE
-                                        </div>
+                                        {event.cpeCredits && Number(event.cpeCredits) > 0 && (
+                                            <div className="absolute top-3 right-3 bg-[#537547]/90 backdrop-blur px-2 py-1 rounded-lg text-xs font-bold text-white flex items-center gap-1">
+                                                <Award className="w-3 h-3" />
+                                                {event.cpeCredits} CPE
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Content */}
                                     <div className="flex-1 space-y-4 text-center md:text-left">
                                         <div>
-                                            <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-2">
-                                                <span className="text-xs px-2 py-1 rounded-full bg-[#537547]/10 text-[#537547] border border-[#537547]/20">
-                                                    {event.category}
-                                                </span>
-                                            </div>
-                                            <h3 className="text-2xl font-bold mb-2 text-gray-900 group-hover:text-[#537547] transition-colors duration-300">{event.name}</h3>
+                                            {event.category && (
+                                                <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-2">
+                                                    <span className="text-xs px-2 py-1 rounded-full bg-[#537547]/10 text-[#537547] border border-[#537547]/20">
+                                                        {event.category}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <h3 className="text-2xl font-bold mb-2 text-gray-900 group-hover:text-[#537547] transition-colors duration-300">{event.eventName}</h3>
                                             <p className="text-gray-500 text-sm line-clamp-2 md:line-clamp-none">{event.description}</p>
                                         </div>
 
@@ -233,7 +240,7 @@ export default function EventsPage() {
                                                 </div>
                                                 <div className="text-left">
                                                     <div className="text-xs text-gray-400">เวลา</div>
-                                                    <div>{event.rounds?.[0]?.time || 'TBA'}</div>
+                                                    <div>{event.startDate ? new Date(event.startDate).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}</div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -242,7 +249,7 @@ export default function EventsPage() {
                                                 </div>
                                                 <div className="text-left">
                                                     <div className="text-xs text-gray-400">วันที่</div>
-                                                    <div>{event.rounds?.[0]?.date ? new Date(event.rounds[0].date).toLocaleDateString() : 'TBA'}</div>
+                                                    <div>{event.startDate ? new Date(event.startDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBA'}</div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -251,7 +258,7 @@ export default function EventsPage() {
                                                 </div>
                                                 <div className="text-left">
                                                     <div className="text-xs text-gray-400">สถานที่</div>
-                                                    <div>{event.rounds?.[0]?.location || 'TBA'}</div>
+                                                    <div>{event.location || 'TBA'}</div>
                                                 </div>
                                             </div>
                                         </div>

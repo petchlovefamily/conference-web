@@ -1,6 +1,6 @@
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { getEvents } from '@/lib/services';
+import { eventsApi } from '@/lib/api/events';
 import { HeroSection } from '@/components/home/HeroSection';
 import { StatsSection } from '@/components/home/StatsSection';
 import { FeaturedEvents } from '@/components/home/FeaturedEvents';
@@ -9,10 +9,12 @@ import { TrustBadges } from '@/components/home/TrustBadges';
 import { CTASection } from '@/components/home/CTASection';
 import { HOME_STATS } from '@/config/constants';
 
+// SSR caching
 export const revalidate = 60;
 
 export default async function Home() {
-  const events = await getEvents().catch(() => []);
+  const result = await eventsApi.list().catch(() => ({ events: [] }));
+  const events = result?.events || [];
   const upcomingEvents = events.slice(0, 3);
 
   // Stats Data

@@ -23,7 +23,8 @@ export async function apiClient<T>(endpoint: string, options: RequestInit = {}):
         },
     };
 
-    const response = await fetch(`${API_URL}${endpoint}`, config);
+    const url = `${API_URL}${endpoint}`;
+    const response = await fetch(url, config);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
