@@ -2,19 +2,18 @@
 
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { getEventById } from '@/lib/services';
-import { useAuth } from '@/contexts/AuthContext';
+import { eventsApi, type ApiEvent, type ApiTicketType, type ApiSession, type ApiSpeaker, type ApiEventImage, type ApiEventAttachment } from '@/lib/api/events';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { CountdownTimer } from '@/components/ui/countdown-timer';
 import { SpeakerMarquee } from '@/components/ui/speaker-marquee';
-import { Calendar, MapPin, Clock, Share2, ArrowLeft, Users, CheckCircle, Award, Ticket, X, ChevronLeft, ChevronRight, Images, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, MapPin, Clock, Share2, ArrowLeft, Users, CheckCircle, Award, Ticket, X, ChevronLeft, ChevronRight, ChevronDown, Images, Check } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Event, Round } from '@/types';
 import { useScrollAnimation } from '@/hooks/use-scroll-animation';
+import NextImage from 'next/image';
 
 // Helper function to format date
 const formatDate = (dateStr: string | undefined): string => {
@@ -32,7 +31,7 @@ const formatDate = (dateStr: string | undefined): string => {
 export default function EventDetailPage() {
     const params = useParams();
     const id = params.id as string;
-    const [selectedRound, setSelectedRound] = useState<string | null>(null);
+    // Removed rounds-based state — using event.startDate/endDate directly
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [mounted, setMounted] = useState(false);
@@ -48,15 +47,20 @@ export default function EventDetailPage() {
         requestAnimationFrame(() => setMounted(true));
     }, []);
 
-    // Session selection state
-    const [selectedSessions, setSelectedSessions] = useState<string[]>([]);
-    
-    // Accordion state for sessions
-    const [expandedSessions, setExpandedSessions] = useState<string[]>([]);
-    const toggleSessionAccordion = (id: string) => {
-        setExpandedSessions(prev => 
-            prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
-        );
+
+    // Expanded sessions state (for accordion)
+    const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
+
+    const toggleExpandSession = (sessionId: number) => {
+        setExpandedSessions(prev => {
+            const next = new Set(prev);
+            if (next.has(sessionId)) {
+                next.delete(sessionId);
+            } else {
+                next.add(sessionId);
+            }
+            return next;
+        });
     };
 
     // Promo code state
@@ -69,15 +73,36 @@ export default function EventDetailPage() {
     // Add-on selection state
     const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
 
-    // User role from AuthContext
-    const { user: authUser, isLoggedIn } = useAuth();
-    const userRole = authUser?.role || 'public';
+    // User role state (check localStorage for logged-in user)
+    const [userRole, setUserRole] = useState<'public' | 'member' | 'vip' | 'student'>('public');
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-    const { data: event, isLoading, isError } = useQuery({
+    // Check user role from localStorage on mount
+    useState(() => {
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem('token');
+            const userData = localStorage.getItem('user');
+            if (token && userData) {
+                setIsLoggedIn(true);
+                try {
+                    const user = JSON.parse(userData);
+                    if (user.role === 'admin' || user.role === 'member' || user.isMember) {
+                        setUserRole('member');
+                    } else if (user.isVip) {
+                        setUserRole('vip');
+                    } else if (user.isStudent) {
+                        setUserRole('student');
+                    }
+                } catch { /* ignore */ }
+            }
+        }
+    });
+
+    const { data: apiData, isLoading, isError, error } = useQuery({
         queryKey: ['event', id],
         queryFn: async () => {
-            const result = await getEventById(id);
-            if (!result) {
+            const result = await eventsApi.get(id);
+            if (!result?.event) {
                 throw new Error('Event not found');
             }
             return result;
@@ -86,14 +111,23 @@ export default function EventDetailPage() {
         retry: 1,
     });
 
-    // Toggle session selection
-    const toggleSession = (sessionId: string) => {
-        setSelectedSessions(prev =>
-            prev.includes(sessionId)
-                ? prev.filter(id => id !== sessionId)
-                : [...prev, sessionId]
-        );
-    };
+    const event = apiData?.event;
+    const eventSessions = (apiData?.sessions || []).filter((s: ApiSession) => !s.isMainSession);
+    const eventTicketTypes = apiData?.ticketTypes || [];
+    const eventImages = apiData?.images || [];
+    const eventAttachments = apiData?.attachments || [];
+    const eventSpeakers = apiData?.speakers || [];
+
+    // Map speakers for SpeakerMarquee component
+    const mappedSpeakers = useMemo(() => eventSpeakers.map(s => ({
+        id: String(s.speakerId),
+        name: `${s.firstName} ${s.lastName}`,
+        title: s.position || s.speakerType,
+        organization: s.organization || '',
+        imageUrl: s.photoUrl || undefined,
+    })), [eventSpeakers]);
+
+
 
     // Toggle add-on selection
     const toggleAddon = (addonId: string) => {
@@ -111,13 +145,22 @@ export default function EventDetailPage() {
         setPromoError(null);
 
         try {
-            const { validatePromoCode } = await import('@/lib/services');
-            const result = await validatePromoCode(promoCode, id);
-            if (result.valid && result.discount) {
-                setPromoDiscount(result.discount);
+            // Simulate API call - replace with real API
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Mock promo codes
+            const mockCodes: Record<string, { type: 'percentage' | 'fixed', value: number }> = {
+                'MEMBER20': { type: 'percentage', value: 20 },
+                'SAVE500': { type: 'fixed', value: 500 },
+                'VIP50': { type: 'percentage', value: 50 },
+            };
+
+            const discount = mockCodes[promoCode.toUpperCase()];
+            if (discount) {
+                setPromoDiscount(discount);
                 setPromoApplied(true);
             } else {
-                setPromoError(result.error || 'โค้ดส่วนลดไม่ถูกต้อง');
+                setPromoError('โค้ดส่วนลดไม่ถูกต้อง');
             }
         } catch {
             setPromoError('เกิดข้อผิดพลาด กรุณาลองใหม่');
@@ -125,7 +168,6 @@ export default function EventDetailPage() {
             setCheckingPromo(false);
         }
     };
-
 
     // Clear promo code
     const clearPromo = () => {
@@ -144,72 +186,68 @@ export default function EventDetailPage() {
         return Math.max(0, price - promoDiscount.value);
     };
 
-    // Auto-detect the best ticket for current user (like Eventpass)
-    // Priority: Early Bird (if available and within sale period) > Member (if logged in) > Public
+    const currentRound = null; // rounds removed — use event.startDate/endDate/location directly
+
+    // Auto-detect the best ticket for current user
     const getAutoSelectedTicket = () => {
-        if (!event?.ticketTypes || event.ticketTypes.length === 0) return null;
+        if (eventTicketTypes.length === 0) return null;
 
         // Filter out add-on tickets
-        const primaryTickets = event.ticketTypes.filter(t => (t as any).category !== 'addon');
+        const primaryTickets = eventTicketTypes.filter((t: ApiTicketType) => t.category !== 'addon');
         if (primaryTickets.length === 0) return null;
 
         const now = new Date();
-        const eventStart = event.startDate ? new Date(event.startDate) : null;
-        const sevenDaysBeforeEvent = eventStart ? new Date(eventStart.getTime() - 7 * 24 * 60 * 60 * 1000) : null;
 
         // Find tickets by category from primary tickets only
-        const earlyBirdTicket = primaryTickets.find(t =>
+        const earlyBirdTicket = primaryTickets.find((t: ApiTicketType) =>
             t.name.toLowerCase().includes('early') || t.name.toLowerCase().includes('bird')
         );
-        const memberTicket = primaryTickets.find(t =>
+        const memberTicket = primaryTickets.find((t: ApiTicketType) =>
             t.name.toLowerCase().includes('member') || t.name.toLowerCase().includes('สมาชิก')
         );
-        const publicTicket = primaryTickets.find(t =>
+        const publicTicket = primaryTickets.find((t: ApiTicketType) =>
             t.name.toLowerCase().includes('public') || t.name.toLowerCase().includes('ทั่วไป') || t.name.toLowerCase().includes('general')
         );
 
-        // Check Early Bird availability (before 7 days of event OR within sale period)
+        // If early bird exists and is within sale period, return it
         if (earlyBirdTicket) {
-            const salesStart = earlyBirdTicket.salesStart ? new Date(earlyBirdTicket.salesStart) : null;
-            const salesEnd = earlyBirdTicket.salesEnd ? new Date(earlyBirdTicket.salesEnd) : sevenDaysBeforeEvent;
+            const salesStart = earlyBirdTicket.saleStartDate ? new Date(earlyBirdTicket.saleStartDate) : null;
+            const salesEnd = earlyBirdTicket.saleEndDate ? new Date(earlyBirdTicket.saleEndDate) : null; // Changed from sevenDaysBeforeEvent
 
             const isWithinSalePeriod = (!salesStart || now >= salesStart) && (!salesEnd || now <= salesEnd);
-            const hasAvailability = earlyBirdTicket.available === undefined || earlyBirdTicket.available > 0;
+            const hasAvailability = (earlyBirdTicket.quota - earlyBirdTicket.soldCount) > 0;
 
             if (isWithinSalePeriod && hasAvailability) {
                 return earlyBirdTicket;
             }
         }
 
-        // If user is member, return member ticket
-        if (userRole === 'member' && memberTicket) {
-            const hasAvailability = memberTicket.available === undefined || memberTicket.available > 0;
+        // If user is member, return member ticket (TODO: get userRole from auth context)
+        const currentUserRole = '' as string; // Temporarily empty string until auth is integrated fully on frontend
+        if (currentUserRole === 'member' && memberTicket) {
+            const hasAvailability = (memberTicket.quota - memberTicket.soldCount) > 0;
             if (hasAvailability) {
                 return memberTicket;
             }
         }
 
-        // Default to public ticket
-        if (publicTicket) {
-            return publicTicket;
-        }
-
-        // Fallback to first available primary ticket
-        return primaryTickets[0];
+        // Otherwise return public ticket
+        return publicTicket || primaryTickets[0] || null;
     };
 
     if (isLoading) return <div className="min-h-screen bg-white text-[#6f7e0d] flex items-center justify-center">Loading event details...</div>;
     if (isError || !event) return <div className="min-h-screen bg-white text-[#6f7e0d] flex items-center justify-center">Event not found</div>;
 
-    const currentRound = event.rounds?.find((r: Round) => r.id === selectedRound) || event.rounds?.[0];
     const autoSelectedTicket = getAutoSelectedTicket();
 
     // Get add-on tickets
-    const addonTickets = event.ticketTypes?.filter(t => (t as any).category === 'addon') || [];
-    const selectedAddonTickets = event.ticketTypes?.filter(t => selectedAddons.includes(String(t.id))) || [];
-    const addonsTotal = selectedAddonTickets.reduce((sum, t) => sum + Number(t.price || 0), 0);
-    const basePrice = Number(autoSelectedTicket?.price || 0);
+    const addonTickets = eventTicketTypes.filter((t: ApiTicketType) => t.category === 'addon');
+    const selectedAddonTickets = eventTicketTypes.filter((t: ApiTicketType) => selectedAddons.includes(String(t.id)));
+    const addonsTotal = selectedAddonTickets.reduce((sum: number, t: ApiTicketType) => sum + Number(t.price || 0), 0);
+    const basePrice = autoSelectedTicket ? Number(autoSelectedTicket.price) : 0;
     const totalPrice = getDiscountedPrice(basePrice) + addonsTotal;
+
+    const venueImages = eventImages.filter(img => img.imageType === 'venue' || !img.imageType);
 
     return (
         <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden">
@@ -218,7 +256,15 @@ export default function EventDetailPage() {
             {/* Hero Section - Responsive */}
             <section className="relative h-[50vh] sm:h-[55vh] md:h-[60vh] min-h-[400px] md:min-h-[500px] w-full">
                 <div className="absolute inset-0">
-                    <img src={event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'} alt={event.name} className="w-full h-full object-cover" />
+                    {(() => {
+                        const heroUrl = eventImages.find(img => img.imageType === 'detail_hero')?.imageUrl || event.imageUrl || 'https://placehold.co/1200x600?text=Event';
+                        const isVideo = /\.(mp4|webm|mov)$/i.test(heroUrl);
+                        return isVideo ? (
+                            <video src={heroUrl} className="object-cover w-full h-full" autoPlay muted loop playsInline />
+                        ) : (
+                            <img src={heroUrl} alt={event.eventName} className="object-cover w-full h-full" />
+                        );
+                    })()}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                 </div>
 
@@ -231,7 +277,7 @@ export default function EventDetailPage() {
                         {/* Badges */}
                         <div className={`flex flex-wrap gap-2 sm:gap-3 mb-3 sm:mb-4 scroll-animate fade-up stagger-1 ${mounted ? 'is-visible' : ''}`}>
                             <span className="bg-white/20 text-white border border-white/30 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium backdrop-blur-md">
-                                {event.eventType === 'single' ? 'One Day Event' : 'Multi-Day Conference'}
+                                {event.eventType === 'single_room' ? 'One Day Event' : 'Multi-Day Conference'}
                             </span>
                             <span className="bg-white/20 text-white border border-white/30 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium backdrop-blur-md">
                                 {event.cpeCredits} CPE Credits
@@ -240,7 +286,7 @@ export default function EventDetailPage() {
 
                         {/* Title */}
                         <h1 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 sm:mb-4 leading-tight max-w-4xl text-white scroll-animate fade-up stagger-2 ${mounted ? 'is-visible' : ''}`}>
-                            {event.name}
+                            {event.eventName}
                         </h1>
 
                         {/* Meta Info */}
@@ -248,12 +294,12 @@ export default function EventDetailPage() {
                             <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-white flex-shrink-0" />
                                 <span className="truncate">
-                                    {currentRound?.date ? new Date(currentRound.date).toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBA'}
+                                    {event.startDate ? new Date(event.startDate).toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBA'}
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-white flex-shrink-0" />
-                                <span className="truncate">{currentRound?.location || 'TBA'}</span>
+                                <span className="truncate">{event.location || 'TBA'}</span>
                             </div>
                         </div>
                     </div>
@@ -284,16 +330,16 @@ export default function EventDetailPage() {
                             </div>
                         </div>
 
-                        {/* Tickets */}
+                        {/* Capacity */}
                         <div className="bg-[#537547]/10 border border-[#537547]/20 rounded-xl p-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-lg bg-[#537547]/10 flex items-center justify-center flex-shrink-0">
                                     <Ticket className="w-5 h-5 text-[#537547]" />
                                 </div>
                                 <div>
-                                    <div className="text-xs text-[#537547]">ที่นั่งเหลือ</div>
+                                    <div className="text-xs text-[#537547]">ที่นั่ง</div>
                                     <div className="text-xl font-bold text-gray-900">
-                                        {currentRound ? currentRound.capacity - currentRound.registered : 0}
+                                        {event.maxCapacity}
                                     </div>
                                 </div>
                             </div>
@@ -305,10 +351,10 @@ export default function EventDetailPage() {
                         <div>
                             <div className="text-xs text-gray-500">ราคา</div>
                             <div className="text-2xl font-bold text-[#537547]">
-                                ฿{Math.round(event.price ?? 0).toLocaleString()}
+                                ฿{basePrice.toLocaleString()}
                             </div>
                         </div>
-                        <Link href={`/checkout/${event.id}?round=${selectedRound || currentRound?.id}`}>
+                        <Link href={`/checkout/${event.id}`}>
                             <Button className="bg-[#537547] hover:bg-[#456339] text-white px-6 h-12 font-bold rounded-xl transition-transform hover:scale-105 active:scale-95">
                                 จองตั๋ว
                             </Button>
@@ -329,85 +375,83 @@ export default function EventDetailPage() {
                             </p>
                         </section>
 
-                        {/* Sessions Section - Informational only (selection moved to sidebar) */}
-                        {event.sessions && event.sessions.length > 0 && (
-                            <section ref={sessionsRef} className={`bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm scroll-animate fade-up ${sessionsVisible ? 'is-visible' : ''}`}>
-                                <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-[#6f7e0d] mb-4">
-                                    <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-[#537547]" />
-                                    กำหนดการ Sessions
+                        {/* Sessions Section - Accordion */}
+                        {eventSessions.length > 0 && (
+                            <section ref={sessionsRef} className={`bg-white border border-[#537547]/20 rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm scroll-animate fade-up ${sessionsVisible ? 'is-visible' : ''}`}>
+                                <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-[#537547] mb-4">
+                                    <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
+                                    Sessions ({eventSessions.length})
                                 </h2>
                                 <div className="space-y-3">
-                                    {event.sessions.map((session) => (
-                                        <div
-                                            key={session.id}
-                                            className="rounded-xl border border-gray-200 bg-gray-50/50 overflow-hidden transition-all duration-200"
-                                        >
-                                            <button
-                                                onClick={() => toggleSessionAccordion(String(session.id))}
-                                                className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-100/50 transition-colors"
-                                            >
-                                                <div className="flex-1 min-w-0 pr-4">
-                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                                                        <span className="px-2 py-0.5 bg-[#537547]/10 text-[#537547] rounded text-xs font-medium">
-                                                            {session.sessionCode}
-                                                        </span>
-                                                        <h3 className="font-semibold text-gray-900">{session.sessionName}</h3>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3 flex-shrink-0">
-                                                    <span className="px-2 py-1 bg-gray-200/60 rounded text-xs text-gray-600 font-medium whitespace-nowrap hidden sm:inline-block">
-                                                        {session.maxCapacity} seats
-                                                    </span>
-                                                    <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#537547] hover:border-[#537547] transition-colors">
-                                                        {expandedSessions.includes(String(session.id)) ? (
-                                                            <ChevronUp className="w-4 h-4" />
-                                                        ) : (
-                                                            <ChevronDown className="w-4 h-4" />
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </button>
-
+                                    {eventSessions.map((session: ApiSession) => {
+                                        const isExpanded = expandedSessions.has(session.id);
+                                        return (
                                             <div
-                                                className={cn(
-                                                    "grid transition-all duration-200 ease-in-out",
-                                                    expandedSessions.includes(String(session.id)) ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                                                )}
+                                                key={session.id}
+                                                className="rounded-xl border bg-gray-50 border-gray-200 overflow-hidden transition-all"
                                             >
-                                                <div className="overflow-hidden">
-                                                    <div className="p-4 pt-0 border-t border-gray-100/60 bg-white">
-                                                        {session.description && (
-                                                            <p className="text-sm text-gray-600 mb-4 mt-3 leading-relaxed">
-                                                                {session.description}
-                                                            </p>
-                                                        )}
-                                                        <div className="flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600 bg-gray-50/50 rounded-lg p-3 border border-gray-100">
-                                                            <span className="flex items-center gap-2">
-                                                                <Clock className="w-4 h-4 text-[#537547]" />
-                                                                <span className="font-medium">
-                                                                    {session.startTime ? new Date(session.startTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}
-                                                                    {' - '}
-                                                                    {session.endTime ? new Date(session.endTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}
-                                                                </span>
+                                                {/* Clickable Header */}
+                                                <button
+                                                    onClick={() => toggleExpandSession(session.id)}
+                                                    className="w-full p-4 flex items-center gap-3 text-left hover:bg-gray-100 transition-colors"
+                                                >
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span className="px-2 py-0.5 bg-[#537547]/10 text-[#537547] rounded text-xs font-medium">
+                                                                {session.sessionCode}
+                                                            </span>
+                                                            <h3 className="font-semibold text-gray-900">{session.sessionName}</h3>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-500 mt-1">
+                                                            <span className="flex items-center gap-1">
+                                                                <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                                                                {session.startTime ? new Date(session.startTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}
+                                                                {' - '}
+                                                                {session.endTime ? new Date(session.endTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}
                                                             </span>
                                                             {session.room && (
-                                                                <span className="flex items-center gap-2">
-                                                                    <MapPin className="w-4 h-4 text-[#537547]" />
-                                                                    <span className="font-medium">{session.room}</span>
-                                                                </span>
-                                                            )}
-                                                            {session.speakers && (
-                                                                <span className="flex items-center gap-2">
-                                                                    <Users className="w-4 h-4 text-[#537547]" />
-                                                                    <span className="font-medium">{session.speakers}</span>
+                                                                <span className="flex items-center gap-1">
+                                                                    <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
+                                                                    {session.room}
                                                                 </span>
                                                             )}
                                                         </div>
                                                     </div>
+                                                    <span className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600 flex-shrink-0">
+                                                        {session.maxCapacity} seats
+                                                    </span>
+                                                    <ChevronDown className={cn(
+                                                        "w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-200",
+                                                        isExpanded && "rotate-180"
+                                                    )} />
+                                                </button>
+
+                                                {/* Expandable Content */}
+                                                <div className={cn(
+                                                    "overflow-hidden transition-all duration-200 ease-in-out",
+                                                    isExpanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                                                )}>
+                                                    <div className="px-4 pb-4 pt-0 border-t border-gray-200">
+                                                        {session.description ? (
+                                                            <p className="text-sm text-gray-600 leading-relaxed mt-3 whitespace-pre-line">{session.description}</p>
+                                                        ) : (
+                                                            <p className="text-sm text-gray-400 italic mt-3">ยังไม่มีรายละเอียดเพิ่มเติม</p>
+                                                        )}
+                                                        {session.speakers && session.speakers.length > 0 && (
+                                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                                {session.speakers.map((speaker: string, idx: number) => (
+                                                                    <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-[#537547]/10 text-[#537547] rounded-full text-xs">
+                                                                        <Users className="w-3 h-3" />
+                                                                        {speaker}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </section>
                         )}
@@ -419,75 +463,153 @@ export default function EventDetailPage() {
                                 สถานที่จัดงาน
                             </h2>
 
-                            <div className="grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
-                                {/* Venue Image - Clickable Gallery Preview */}
-                                <button
-                                    onClick={() => { if (event.images && event.images.length > 0) { setLightboxIndex(0); setLightboxOpen(true); } }}
-                                    className={cn(
-                                        "rounded-xl sm:rounded-2xl overflow-hidden h-48 sm:h-56 md:h-64 relative border border-gray-200 group text-left",
-                                        event.images && event.images.length > 0 && "cursor-pointer hover:border-[#537547]/50"
-                                    )}
-                                    disabled={!event.images || event.images.length === 0}
-                                >
-                                    <img
-                                        src={event.images?.[0]?.imageUrl || event.venueImage || "https://placehold.co/600x400?text=Venue"}
-                                        alt="Venue"
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                    />
-                                    {event.images && event.images.length > 0 && (
-                                        <>
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
-                                                    <Images className="w-5 h-5 text-white" />
-                                                    <span className="text-white font-medium text-sm">ดูรูปภาพทั้งหมด</span>
-                                                </div>
-                                            </div>
-                                            {event.images.length > 1 && (
-                                                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full text-xs text-white">
-                                                    +{event.images.length - 1} รูป
+                            {/* Masonry / Bento Gallery */}
+                            {venueImages.length > 0 && (
+                                <div className={cn(
+                                    "grid gap-2 rounded-2xl overflow-hidden mb-6",
+                                    venueImages.length === 1 && "grid-cols-1 h-64 sm:h-80",
+                                    venueImages.length === 2 && "grid-cols-2 h-56 sm:h-72",
+                                    venueImages.length === 3 && "grid-cols-3 grid-rows-2 h-64 sm:h-80",
+                                    venueImages.length === 4 && "grid-cols-2 grid-rows-2 h-72 sm:h-96",
+                                    venueImages.length >= 5 && "grid-cols-4 grid-rows-2 h-72 sm:h-96",
+                                )}>
+                                    {venueImages.slice(0, Math.min(venueImages.length, 5)).map((img, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => { setLightboxIndex(idx); setLightboxOpen(true); }}
+                                            className={cn(
+                                                "relative overflow-hidden group cursor-pointer rounded-xl",
+                                                // Layout rules for different counts
+                                                venueImages.length === 3 && idx === 0 && "col-span-2 row-span-2",
+                                                venueImages.length === 3 && idx > 0 && "col-span-1 row-span-1",
+                                                venueImages.length >= 5 && idx === 0 && "col-span-2 row-span-2",
+                                                venueImages.length >= 5 && idx > 0 && "col-span-1 row-span-1",
+                                            )}
+                                        >
+                                            <img
+                                                src={img.imageUrl}
+                                                alt={img.caption || `Venue photo ${idx + 1}`}
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                            />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-300" />
+
+                                            {/* Show "+N more" on last visible image if there are more */}
+                                            {idx === Math.min(venueImages.length, 5) - 1 && venueImages.length > 5 && (
+                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                                    <div className="text-center">
+                                                        <Images className="w-8 h-8 text-white mx-auto mb-2" />
+                                                        <span className="text-white text-xl font-bold">+{venueImages.length - 5}</span>
+                                                        <p className="text-white/80 text-sm">ดูเพิ่มเติม</p>
+                                                    </div>
                                                 </div>
                                             )}
-                                        </>
-                                    )}
-                                </button>
-                                <div className="flex flex-col justify-center space-y-3 sm:space-y-4">
-                                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">{currentRound?.location || 'TBA'}</h3>
-                                    <div className="space-y-2 sm:space-y-3">
-                                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
-                                            <CheckCircle className="w-4 h-4 text-[#537547] flex-shrink-0" />
-                                            <span>เดินทางสะดวกด้วยรถไฟฟ้า</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
-                                            <CheckCircle className="w-4 h-4 text-[#537547] flex-shrink-0" />
-                                            <span>มีที่จอดรถ</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
-                                            <CheckCircle className="w-4 h-4 text-[#537547] flex-shrink-0" />
-                                            <span>Wi-Fi ฟรีสำหรับผู้เข้าร่วม</span>
+
+                                            {/* Caption on first image */}
+                                            {idx === 0 && img.caption && (
+                                                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <p className="text-white text-sm font-medium truncate">{img.caption}</p>
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {venueImages.length === 0 && (
+                                <div className="h-48 sm:h-64 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center mb-6">
+                                    <div className="text-center text-gray-400">
+                                        <Images className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                        <p className="font-medium">ยังไม่มีรูปภาพสถานที่</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Venue Info & Map */}
+                            <div className="flex flex-col gap-6">
+                                <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-start">
+                                    <div className="flex-1 space-y-3 sm:space-y-4">
+                                        <h3 className="text-lg sm:text-xl font-bold text-gray-900">{event.location || 'TBA'}</h3>
+                                        <div className="space-y-2 sm:space-y-3">
+                                            <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
+                                                <CheckCircle className="w-4 h-4 text-[#537547] flex-shrink-0" />
+                                                <span>เดินทางสะดวกด้วยรถไฟฟ้า</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
+                                                <CheckCircle className="w-4 h-4 text-[#537547] flex-shrink-0" />
+                                                <span>มีที่จอดรถ</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
+                                                <CheckCircle className="w-4 h-4 text-[#537547] flex-shrink-0" />
+                                                <span>Wi-Fi ฟรีสำหรับผู้เข้าร่วม</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <Button
-                                        variant="outline"
-                                        className="w-full mt-auto border-gray-300 hover:bg-gray-100 text-gray-700 text-sm sm:text-base"
-                                        asChild
-                                    >
-                                        <a
-                                            href={currentRound?.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentRound?.location || '')}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
-                                            ดูแผนที่
-                                        </a>
-                                    </Button>
                                 </div>
+
+                                {/* Embedded Google Map */}
+                                {event.location && (
+                                    <div className="w-full h-64 sm:h-80 rounded-xl overflow-hidden border border-gray-200 shadow-inner bg-gray-50 relative group">
+                                        {(() => {
+                                            // Helper to gracefully handle if user pastes the entire <iframe ...> string
+                                            const extractMapUrl = (url: string | null | undefined) => {
+                                                if (!url) return undefined;
+                                                const srcMatch = url.match(/src="([^"]+)"/);
+                                                return srcMatch ? srcMatch[1] : url;
+                                            };
+
+                                            const finalMapUrl = extractMapUrl(event.mapUrl);
+                                            const isEmbedUrl = finalMapUrl?.includes('embed') || finalMapUrl?.includes('pb=');
+
+                                            // Handle case where location might be null
+                                            const searchLocation = event.location || '';
+
+                                            return (
+                                                <>
+                                                    <iframe
+                                                        width="100%"
+                                                        height="100%"
+                                                        style={{ border: 0 }}
+                                                        loading="lazy"
+                                                        allowFullScreen
+                                                        referrerPolicy="no-referrer-when-downgrade"
+                                                        src={
+                                                            isEmbedUrl
+                                                                ? finalMapUrl
+                                                                : `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}&q=${encodeURIComponent(searchLocation)}`
+                                                        }
+                                                        className={(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || isEmbedUrl) ? "" : "hidden"}
+                                                    />
+
+                                                    {/* Fallback if no API key and no embed URL */}
+                                                    {(!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && !isEmbedUrl) && (
+                                                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                                                            <MapPin className="w-12 h-12 text-gray-300 mb-3" />
+                                                            <h4 className="font-semibold text-gray-700 mb-1">สถานที่จัดงาน</h4>
+                                                            <p className="text-gray-500 text-sm mb-4 line-clamp-2 max-w-md">{event.location}</p>
+                                                            <Button variant="outline" asChild>
+                                                                <a
+                                                                    href={finalMapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchLocation)}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                >
+                                                                    เปิดใน Google Maps
+                                                                </a>
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Event Attachments */}
-                            {event.attachments && event.attachments.length > 0 && (
+                            {eventAttachments.length > 0 && (
                                 <div className="mt-6 pt-6 border-t border-gray-200">
                                     <h3 className="text-lg font-semibold mb-3 text-gray-700">เอกสารประกอบ</h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {event.attachments.map((attachment) => (
+                                        {eventAttachments.map((attachment: ApiEventAttachment) => (
                                             <a
                                                 key={attachment.id}
                                                 href={attachment.fileUrl}
@@ -507,13 +629,13 @@ export default function EventDetailPage() {
                         </section>
 
                         {/* Speakers */}
-                        {event.speakers && event.speakers.length > 0 && (
+                        {mappedSpeakers.length > 0 && (
                             <section ref={speakersRef} className={`overflow-hidden scroll-animate fade-up ${speakersVisible ? 'is-visible' : ''}`}>
                                 <h2 className="text-xl sm:text-2xl font-bold mb-4 flex items-center gap-2 text-[#6f7e0d]">
                                     <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#537547]" />
-                                    ผู้บรรยาย ({event.speakers.length} ท่าน)
+                                    ผู้บรรยาย ({mappedSpeakers.length} ท่าน)
                                 </h2>
-                                <SpeakerMarquee speakers={event.speakers} />
+                                <SpeakerMarquee speakers={mappedSpeakers} />
                             </section>
                         )}
                     </div>
@@ -547,22 +669,11 @@ export default function EventDetailPage() {
                                         <Ticket className="w-7 h-7 text-[#537547]" />
                                     </div>
                                     <div>
-                                        <div className="text-sm text-[#537547]">ที่นั่งเหลือ</div>
+                                        <div className="text-sm text-[#537547]">ที่นั่ง</div>
                                         <div className="text-3xl font-bold text-gray-900">
-                                            {currentRound ? currentRound.capacity - currentRound.registered : 0}
-                                            <span className="text-lg font-normal text-gray-500"> / {currentRound?.capacity || 0}</span>
+                                            {event.maxCapacity}
                                         </div>
                                     </div>
-                                </div>
-                                {/* Progress bar */}
-                                <div className="mt-3">
-                                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-[#537547] rounded-full transition-all"
-                                            style={{ width: `${currentRound ? (currentRound.registered / currentRound.capacity) * 100 : 0}%` }}
-                                        />
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-2">{currentRound ? Math.round((currentRound.registered / currentRound.capacity) * 100) : 0}% sold</p>
                                 </div>
                             </div>
 
@@ -577,15 +688,13 @@ export default function EventDetailPage() {
                                         <span className={cn(
                                             "px-2 py-1 rounded-full text-xs font-medium",
                                             userRole === 'public' ? "bg-gray-200 text-gray-600" :
-                                                userRole === 'general' ? "bg-blue-100 text-blue-600" :
-                                                    userRole === 'member' ? "bg-[#537547]/20 text-[#537547]" :
-                                                        userRole === 'vip' ? "bg-purple-100 text-purple-600" :
-                                                            "bg-indigo-100 text-indigo-600"
+                                                userRole === 'member' ? "bg-[#537547]/20 text-[#537547]" :
+                                                    userRole === 'vip' ? "bg-purple-100 text-purple-600" :
+                                                        "bg-blue-100 text-blue-600"
                                         )}>
                                             {userRole === 'public' ? 'Guest' :
-                                                userRole === 'general' ? 'General' :
-                                                    userRole === 'member' ? 'Member' :
-                                                        userRole === 'vip' ? 'VIP' : 'Student'}
+                                                userRole === 'member' ? 'Member' :
+                                                    userRole === 'vip' ? 'VIP' : 'Student'}
                                         </span>
                                     </div>
 
@@ -596,33 +705,29 @@ export default function EventDetailPage() {
                                             <div className="flex items-center justify-between">
                                                 <div>
                                                     <div className="font-bold text-gray-900 text-lg">{autoSelectedTicket.name}</div>
-                                                    {autoSelectedTicket.available !== undefined && (
-                                                        <div className="text-xs text-gray-500 mt-1">
-                                                            เหลือ {autoSelectedTicket.available} ที่นั่ง
-                                                        </div>
-                                                    )}
+                                                    <div className="text-xs text-gray-500 mt-1">
+                                                        เหลือ {autoSelectedTicket.quota - autoSelectedTicket.soldCount} ที่นั่ง
+                                                    </div>
                                                 </div>
                                                 <div className="text-right">
                                                     {promoApplied && getDiscountedPrice(Number(autoSelectedTicket.price)) < Number(autoSelectedTicket.price) ? (
                                                         <>
                                                             <span className="text-gray-500 line-through text-sm block">
-                                                                ฿{Math.round(Number(autoSelectedTicket.price)).toLocaleString()}
+                                                                ฿{Number(autoSelectedTicket.price).toLocaleString()}
                                                             </span>
                                                             <span className="text-2xl font-bold text-[#537547]">
-                                                                ฿{Math.round(getDiscountedPrice(Number(autoSelectedTicket.price))).toLocaleString()}
+                                                                ฿{getDiscountedPrice(Number(autoSelectedTicket.price)).toLocaleString()}
                                                             </span>
                                                         </>
                                                     ) : (
                                                         <span className="text-2xl font-bold text-[#537547]">
-                                                            ฿{Math.round(Number(autoSelectedTicket.price)).toLocaleString()}
+                                                            ฿{Number(autoSelectedTicket.price).toLocaleString()}
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
                                         </div>
                                     )}
-
-
 
                                     {/* Add-on Tickets Section */}
                                     {addonTickets.length > 0 && (
@@ -634,7 +739,7 @@ export default function EventDetailPage() {
                                             <div className="space-y-2">
                                                 {addonTickets.map(addon => {
                                                     const isSelected = selectedAddons.includes(String(addon.id));
-                                                    const isSoldOut = addon.available !== undefined && addon.available <= 0;
+                                                    const isSoldOut = (addon.quota - addon.soldCount) <= 0;
                                                     return (
                                                         <button
                                                             key={addon.id}
@@ -644,7 +749,7 @@ export default function EventDetailPage() {
                                                                 "w-full p-3 rounded-lg border text-left transition-all",
                                                                 isSoldOut ? "opacity-50 cursor-not-allowed bg-gray-100 border-gray-200" :
                                                                     isSelected ? "bg-[#537547]/10 border-[#537547]" :
-                                                                        "bg-white border-gray-200 hover:border-[#537547]/50"
+                                                                        "bg-gray-50 border-gray-200 hover:border-[#537547]/50"
                                                             )}
                                                         >
                                                             <div className="flex items-center justify-between">
@@ -660,12 +765,12 @@ export default function EventDetailPage() {
                                                                         <div className="text-xs text-gray-500">
                                                                             {isSoldOut
                                                                                 ? <span className="text-red-400">เต็มแล้ว</span>
-                                                                                : `เหลือ ${addon.available ?? addon.quota} ที่นั่ง`
+                                                                                : `เหลือ ${addon.quota - addon.soldCount} ที่นั่ง`
                                                                             }
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                <span className="text-[#537547] font-bold">+฿{Math.round(Number(addon.price)).toLocaleString()}</span>
+                                                                <span className="text-[#537547] font-bold">+฿{Number(addon.price).toLocaleString()}</span>
                                                             </div>
                                                         </button>
                                                     );
@@ -679,10 +784,10 @@ export default function EventDetailPage() {
                                         <div className="bg-[#537547]/10 p-4 rounded-xl border border-[#537547]/20">
                                             {selectedAddonTickets.length > 0 && (
                                                 <div className="mb-2 pb-2 border-b border-gray-200 space-y-1">
-                                                    {selectedAddonTickets.map(addon => (
+                                                    {selectedAddonTickets.map((addon: ApiTicketType) => (
                                                         <div key={addon.id} className="flex justify-between text-sm">
                                                             <span className="text-[#537547]">+ {addon.name}</span>
-                                                            <span className="text-[#537547]">฿{Math.round(Number(addon.price)).toLocaleString()}</span>
+                                                            <span className="text-[#537547]">฿{Number(addon.price).toLocaleString()}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -690,7 +795,7 @@ export default function EventDetailPage() {
                                             <div className="flex justify-between items-center">
                                                 <span className="font-bold text-gray-900">รวมทั้งหมด</span>
                                                 <span className="text-2xl font-bold text-[#537547]">
-                                                    ฿{Math.round(totalPrice).toLocaleString()}
+                                                    ฿{totalPrice.toLocaleString()}
                                                 </span>
                                             </div>
                                         </div>
@@ -746,11 +851,12 @@ export default function EventDetailPage() {
                                 </div>
 
                                 <Link
-                                    href={`/checkout/${event.id}?ticket=${autoSelectedTicket?.id || ''}${selectedSessions.length > 0 ? `&sessions=${selectedSessions.join(',')}` : ''}${selectedAddons.length > 0 ? `&addons=${selectedAddons.join(',')}` : ''}${promoApplied ? `&promo=${promoCode}` : ''}`}
+                                    href={`/checkout/${event.id}?ticket=${autoSelectedTicket?.id || ''}${selectedAddons.length > 0 ? `&addons=${selectedAddons.join(',')}` : ''}${promoApplied ? `&promo=${promoCode}` : ''}`}
                                     className="block"
                                 >
-                                    <Button className="w-full h-14 text-lg font-bold bg-[#537547] hover:bg-[#456339] text-white shadow-lg rounded-xl transition-transform hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]">
-                                        จองตั๋วเลย
+                                    <Button className="relative overflow-hidden w-full h-14 text-lg font-bold bg-[#537547] hover:bg-[#456339] text-white shadow-lg rounded-xl transition-transform hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] group">
+                                        <span className="relative z-10">จองตั๋วเลย</span>
+                                        <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-70 group-hover:animate-shimmer" />
                                     </Button>
                                 </Link>
 
@@ -782,10 +888,10 @@ export default function EventDetailPage() {
                         <div>
                             <div className="text-xs text-gray-500">เริ่มต้นที่</div>
                             <div className="text-xl font-bold text-[#537547]">
-                                ฿{Math.round(event.price ?? 0).toLocaleString()}
+                                ฿{basePrice.toLocaleString()}
                             </div>
                         </div>
-                        <Link href={`/checkout/${event.id}?round=${selectedRound || currentRound?.id}`} className="flex-1 max-w-[200px]">
+                        <Link href={`/checkout/${event.id}`} className="flex-1 max-w-[200px]">
                             <Button className="w-full bg-[#537547] hover:bg-[#456339] text-white h-12 font-bold rounded-xl transition-transform hover:scale-105 active:scale-95">
                                 จองตั๋วเลย
                             </Button>
@@ -800,14 +906,14 @@ export default function EventDetailPage() {
             <Footer />
 
             {/* Lightbox Modal */}
-            {lightboxOpen && event?.images && (
+            {lightboxOpen && venueImages.length > 0 && (
                 <div
                     className="fixed inset-0 z-50 bg-black/95 flex flex-col"
                     onClick={() => setLightboxOpen(false)}
                 >
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 text-white">
-                        <span className="text-sm">{lightboxIndex + 1} / {event.images.length}</span>
+                        <span className="text-sm">{lightboxIndex + 1} / {venueImages.length}</span>
                         <button
                             onClick={() => setLightboxOpen(false)}
                             className="p-2 hover:bg-white/10 rounded-full transition-colors"
@@ -819,9 +925,9 @@ export default function EventDetailPage() {
                     {/* Main Image */}
                     <div className="flex-1 flex items-center justify-center px-4 relative" onClick={(e) => e.stopPropagation()}>
                         {/* Previous Button */}
-                        {event.images.length > 1 && (
+                        {venueImages.length > 1 && (
                             <button
-                                onClick={() => setLightboxIndex(prev => prev === 0 ? event.images!.length - 1 : prev - 1)}
+                                onClick={() => setLightboxIndex(prev => prev === 0 ? venueImages.length - 1 : prev - 1)}
                                 className="absolute left-4 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
                             >
                                 <ChevronLeft className="w-6 h-6 text-white" />
@@ -829,15 +935,15 @@ export default function EventDetailPage() {
                         )}
 
                         <img
-                            src={event.images[lightboxIndex].imageUrl || 'https://placehold.co/1200x800?text=Venue+Photo'}
-                            alt={event.images[lightboxIndex].caption || 'Venue photo'}
+                            src={venueImages[lightboxIndex]?.imageUrl}
+                            alt="Venue preview"
                             className="max-h-[70vh] max-w-full object-contain rounded-lg"
                         />
 
                         {/* Next Button */}
-                        {event.images.length > 1 && (
+                        {venueImages.length > 1 && (
                             <button
-                                onClick={() => setLightboxIndex(prev => prev === event.images!.length - 1 ? 0 : prev + 1)}
+                                onClick={() => setLightboxIndex(prev => prev === venueImages.length - 1 ? 0 : prev + 1)}
                                 className="absolute right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
                             >
                                 <ChevronRight className="w-6 h-6 text-white" />
@@ -846,24 +952,22 @@ export default function EventDetailPage() {
                     </div>
 
                     {/* Thumbnails */}
-                    {event.images.length > 1 && (
+                    {venueImages.length > 1 && (
                         <div className="p-4 flex justify-center gap-2 overflow-x-auto" onClick={(e) => e.stopPropagation()}>
-                            {event.images.map((img, idx) => (
+                            {venueImages.map((img, idx) => (
                                 <button
-                                    key={img.id}
+                                    key={idx}
                                     onClick={() => setLightboxIndex(idx)}
-                                    className={cn(
-                                        "w-16 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all",
-                                        idx === lightboxIndex ? "border-[#537547]" : "border-transparent opacity-60 hover:opacity-100"
-                                    )}
+                                    className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${idx === lightboxIndex ? 'border-[#537547]' : 'border-transparent opacity-60 hover:opacity-100'}`}
                                 >
-                                    <img src={img.imageUrl || 'https://placehold.co/1200x800?text=Venue+Photo'} alt="" className="w-full h-full object-cover" />
+                                    <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
                                 </button>
                             ))}
                         </div>
                     )}
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

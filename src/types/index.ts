@@ -24,6 +24,7 @@ export interface Event {
     sessions?: Session[];
     // UI compatibility fields
     coverImage?: string;
+    imageUrl?: string;
     venueImage?: string;
     image?: string;
     speakers?: Speaker[];

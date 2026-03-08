@@ -242,3 +242,8 @@
 .stagger-6 {
   animation-delay: 0.6s !important;
 }
+
+@utility animate-fade-in {
+  /* Simple fade-in utility for profile tabs */
+  animation: fadeIn 0.4s ease-out forwards;
+}

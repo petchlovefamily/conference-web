@@ -11,6 +11,7 @@ interface User {
     country?: string | null;
     delegateType?: string;
     isThai?: boolean;
+    phone?: string | null;
     // Computed display name for backward compatibility
     name: string;
 }
@@ -36,18 +37,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const checkAuth = async () => {
             try {
                 const storedToken = localStorage.getItem('token');
-                const storedUser = localStorage.getItem('user');
+                if (!storedToken) {
+                    setIsLoading(false);
+                    return;
+                }
 
-                if (storedToken && storedUser) {
-                    const parsedUser = JSON.parse(storedUser);
-                    setToken(storedToken);
-                    setUser(parsedUser);
+                // Verify token by fetching user profile
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/users/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${storedToken}`,
+                    },
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.user) {
+                        const profileUser = {
+                            ...data.user,
+                            name: `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() || data.user.email,
+                        };
+                        setToken(storedToken);
+                        setUser(profileUser);
+                        localStorage.setItem('user', JSON.stringify(profileUser));
+                    } else {
+                        throw new Error('Invalid profile response');
+                    }
+                } else {
+                    throw new Error('Token verification failed');
                 }
             } catch (error) {
                 console.error('Auth check failed:', error);
                 // Clear invalid data
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
+                setToken(null);
+                setUser(null);
             } finally {
                 setIsLoading(false);
             }

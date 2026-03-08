@@ -2,7 +2,6 @@
 
 import { useParams, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { MOCK_EVENTS } from '@/lib/mockData';
 import { getEventById } from '@/lib/services';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';

@@ -7,12 +7,11 @@ import {
     PaymentVerifyResponse,
     FeedbackRequest,
 } from '@/types';
-import { MOCK_EVENTS, getMockEventById } from './mockData';
+import { apiClient } from './api/client';
+import { API_URL } from '@/config';
 
 // ===========================================
-// Mock Service Layer
-// All functions return mock data only.
-// Replace with real API calls when new API is ready.
+// Service Layer — Real API calls
 // ===========================================
 
 // ========== EVENT SERVICES ==========
@@ -21,48 +20,90 @@ import { MOCK_EVENTS, getMockEventById } from './mockData';
  * Get all published events
  */
 export async function getEvents(): Promise<Event[]> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return MOCK_EVENTS as Event[];
+    const res = await apiClient<{ events: any[] }>('/api/events');
+    return (res.events || []).map(mapApiEventToEvent);
 }
 
 /**
- * Get single event by ID
+ * Get single event by ID or event code
  */
 export async function getEventById(id: string): Promise<Event> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const mockEvent = getMockEventById(id);
-    if (!mockEvent) {
-        throw new Error('Event not found');
-    }
-    return mockEvent;
+    const res = await apiClient<{ event: any }>(`/api/events/${id}`);
+    if (!res.event) throw new Error('Event not found');
+    return mapApiEventToEvent(res.event);
+}
+
+/**
+ * Map API event response to frontend Event type
+ */
+function mapApiEventToEvent(apiEvent: any): Event {
+    return {
+        id: String(apiEvent.id),
+        code: apiEvent.eventCode || '',
+        name: apiEvent.eventName || apiEvent.name || '',
+        title: apiEvent.eventName || apiEvent.name || '',
+        description: apiEvent.description || '',
+        eventType: apiEvent.eventType || 'single',
+        status: apiEvent.status || 'published',
+        venue: apiEvent.location || '',
+        capacity: apiEvent.maxCapacity || 0,
+        cpeCredits: apiEvent.cpeCredits || '0',
+        startDate: apiEvent.startDate || '',
+        endDate: apiEvent.endDate || '',
+        registrationOpens: apiEvent.registrationOpens || '',
+        registrationCloses: apiEvent.registrationCloses || '',
+        coverImage: apiEvent.coverImage || '',
+        venueImage: apiEvent.venueImage || '',
+        imageUrl: apiEvent.imageUrl || '',
+        image: apiEvent.imageUrl || '',
+        location: apiEvent.location || '',
+        price: apiEvent.price ?? 0,
+        category: apiEvent.category || '',
+        createdAt: apiEvent.createdAt || '',
+        // Pass through nested data if present
+        ticketTypes: apiEvent.ticketTypes || [],
+        sessions: apiEvent.sessions || [],
+        speakers: apiEvent.speakers || [],
+        images: apiEvent.images || [],
+        attachments: apiEvent.attachments || [],
+        rounds: apiEvent.rounds || [],
+        schedule: apiEvent.schedule || [],
+    };
 }
 
 // ========== MEMBER VERIFICATION ==========
 
 /**
- * Verify pharmacist license number (mock)
+ * Verify pharmacist license number
  */
 export async function verifyMember(licenseNumber: string): Promise<MemberVerifyResponse> {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (licenseNumber.startsWith('ภ.')) {
-        return { valid: true, member: { id: 'member-1', name: 'ผู้ใช้ทดสอบ', licenseNumber } };
+    try {
+        const res = await apiClient<MemberVerifyResponse>('/api/users/verify-member', {
+            method: 'POST',
+            body: JSON.stringify({ licenseNumber }),
+        });
+        return res;
+    } catch {
+        return { valid: false };
     }
-    return { valid: false };
 }
 
 // ========== REGISTRATION SERVICES ==========
 
 /**
- * Create new registration (mock)
+ * Create new registration
  */
 export async function createRegistration(data: RegistrationRequest): Promise<RegistrationResponse> {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const res = await apiClient<{ success: boolean; data: any }>('/api/registrations', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
     return {
         registration: {
-            id: `reg-${Date.now()}`,
-            registrationNumber: `REG-${Date.now().toString(36).toUpperCase()}`,
-            qrCode: `QR-${data.eventId}-${Date.now()}`,
-            amount: 2500,
+            id: String(res.data?.id || ''),
+            registrationNumber: res.data?.regCode || '',
+            qrCode: res.data?.qrCode || '',
+            amount: res.data?.amount || 0,
         },
     };
 }
@@ -70,36 +111,73 @@ export async function createRegistration(data: RegistrationRequest): Promise<Reg
 // ========== PAYMENT SERVICES ==========
 
 /**
- * Create Stripe checkout session (mock)
+ * Create checkout session
  */
 export async function createCheckoutSession(
     registrationId: string,
     successUrl: string,
-    _cancelUrl: string
+    cancelUrl: string
 ): Promise<CheckoutResponse> {
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const res = await apiClient<{ success: boolean; data: any }>('/api/payments/create-checkout', {
+        method: 'POST',
+        body: JSON.stringify({ registrationId, successUrl, cancelUrl }),
+    });
     return {
-        checkoutUrl: `${successUrl}?session_id=mock_session_${Date.now()}`,
-        sessionId: `mock_session_${Date.now()}`,
+        checkoutUrl: res.data?.url || '',
+        sessionId: res.data?.sessionId || '',
     };
 }
 
 /**
- * Verify payment status (mock)
+ * Verify payment status
  */
-export async function verifyPayment(_sessionId: string): Promise<PaymentVerifyResponse> {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { status: 'paid', registrationId: 'mock-reg-123' };
+export async function verifyPayment(sessionId: string): Promise<PaymentVerifyResponse> {
+    const res = await apiClient<{ success: boolean; data: any }>(`/api/payments/verify/${sessionId}`);
+    return {
+        status: res.data?.status || 'unpaid',
+        registrationId: String(res.data?.registrationId || ''),
+    };
+}
+
+// ========== PROMO CODE SERVICES ==========
+
+export interface PromoValidationResult {
+    valid: boolean;
+    discount?: { type: 'percentage' | 'fixed'; value: number };
+    error?: string;
+}
+
+/**
+ * Validate a promo code against the API
+ */
+export async function validatePromoCode(code: string, eventId?: string): Promise<PromoValidationResult> {
+    try {
+        const res = await apiClient<{ success: boolean; data: any }>('/api/payments/validate-promo', {
+            method: 'POST',
+            body: JSON.stringify({ code, eventId }),
+        });
+        if (res.success && res.data) {
+            return {
+                valid: true,
+                discount: res.data.discount,
+            };
+        }
+        return { valid: false, error: 'โค้ดส่วนลดไม่ถูกต้อง' };
+    } catch {
+        return { valid: false, error: 'โค้ดส่วนลดไม่ถูกต้อง' };
+    }
 }
 
 // ========== FEEDBACK SERVICES ==========
 
 /**
- * Submit feedback (mock)
+ * Submit feedback
  */
-export async function submitFeedback(_data: FeedbackRequest): Promise<{ success: boolean }> {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { success: true };
+export async function submitFeedback(data: FeedbackRequest): Promise<{ success: boolean }> {
+    return apiClient<{ success: boolean }>('/api/feedback', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 }
 
 // ========== USER REGISTRATION SERVICES ==========
@@ -131,9 +209,31 @@ export interface UserRegistration {
 }
 
 /**
- * Get current user's registrations (mock)
+ * Get current user's registrations
  */
-export async function getUserRegistrations(_token: string): Promise<UserRegistration[]> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return [];
+export async function getUserRegistrations(token: string): Promise<UserRegistration[]> {
+    try {
+        const res = await fetch(`${API_URL}/api/payments/my-tickets`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        if (!data.success || !data.data?.registration) return [];
+        // Map API response to UserRegistration format
+        const reg = data.data.registration;
+        return [{
+            id: 0,
+            regCode: reg.regCode || '',
+            status: reg.status || '',
+            createdAt: reg.purchasedAt || '',
+            event: null,
+            ticketType: reg.ticketName ? { id: 0, name: reg.ticketName, price: reg.amount || '0' } : null,
+            payment: null,
+        }];
+    } catch {
+        return [];
+    }
 }

@@ -43,6 +43,12 @@ export default function ProfilePage() {
         phone: '',
         organization: '',
     });
+    const [mounted, setMounted] = useState(false);
+
+    // Trigger entrance animation
+    useEffect(() => {
+        requestAnimationFrame(() => setMounted(true));
+    }, []);
 
     // Real data from API
     const [registrations, setRegistrations] = useState<UserRegistration[]>([]);
@@ -144,55 +150,54 @@ export default function ProfilePage() {
     ];
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
+        <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
             <Navbar />
 
             {/* Header */}
-            <section className="relative pt-32 pb-8 px-6 bg-black/40 overflow-hidden">
+            <section className="relative pt-32 pb-12 px-6 bg-white border-b border-gray-200 overflow-hidden">
                 <div className="absolute inset-0 -z-10">
-                    <div className="absolute top-0 left-10 w-64 h-64 bg-emerald-600/20 blur-[100px] rounded-full" />
-                    <div className="absolute bottom-0 right-10 w-96 h-96 bg-green-600/20 blur-[120px] rounded-full" />
+                    <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-[#6f7e0d]/5 to-transparent" />
                 </div>
 
-                <div className="container mx-auto max-w-6xl">
-                    <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors group">
+                <div className={`container mx-auto max-w-6xl scroll-animate fade-up stagger-1 ${mounted ? 'is-visible' : ''}`}>
+                    <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-[#537547] mb-6 transition-colors group">
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                         <span>กลับหน้าหลัก</span>
                     </Link>
-                    <h1 className="text-4xl font-bold">โปรไฟล์ของฉัน</h1>
-                    <p className="text-gray-400 mt-2">จัดการข้อมูลส่วนตัวและดูประวัติการซื้อ</p>
+                    <h1 className="text-4xl font-bold text-[#6f7e0d]">โปรไฟล์ของฉัน</h1>
+                    <p className="text-gray-500 mt-2">จัดการข้อมูลส่วนตัวและดูประวัติการซื้อ</p>
                 </div>
             </section>
 
             {/* Main Content */}
-            <section className="py-8 px-6">
+            <section className="flex-1 py-8 px-6 bg-gray-50">
                 <div className="container mx-auto max-w-6xl">
                     <div className="flex flex-col lg:flex-row gap-6">
 
                         {/* Left Sidebar */}
-                        <div className="lg:w-72 flex-shrink-0">
-                            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-xl sticky top-24">
+                        <div className={`lg:w-72 flex-shrink-0 scroll-animate slide-left stagger-2 ${mounted ? 'is-visible' : ''}`}>
+                            <div className="bg-white border border-gray-200 shadow-sm rounded-3xl p-6 sticky top-24">
                                 {/* Profile Avatar */}
                                 <div className="text-center mb-6">
                                     <div className="relative inline-block">
-                                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center text-white text-3xl font-bold mx-auto border-4 border-emerald-500/50">
+                                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#6f7e0d] to-[#537547] flex items-center justify-center text-white text-3xl font-bold mx-auto border-4 border-white shadow-md">
                                             {user.name?.charAt(0).toUpperCase() || 'U'}
                                         </div>
                                         {(user.role === 'admin' || user.role === 'staff') && (
-                                            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center border-2 border-black">
+                                            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
                                                 <Shield className="w-3 h-3 text-white" />
                                             </div>
                                         )}
                                     </div>
-                                    <h2 className="text-lg font-bold mt-3">{user.name}</h2>
+                                    <h2 className="text-lg font-bold text-gray-900 mt-3">{user.name}</h2>
                                     <div className="flex items-center justify-center gap-2 mt-2">
-                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs border ${user.role === 'admin'
-                                            ? 'bg-purple-600/20 text-purple-300 border-purple-500/30'
+                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${user.role === 'admin'
+                                            ? 'bg-purple-50 text-purple-700 border-purple-200'
                                             : user.role === 'staff'
-                                                ? 'bg-blue-600/20 text-blue-300 border-blue-500/30'
+                                                ? 'bg-blue-50 text-blue-700 border-blue-200'
                                                 : isPharmacist
-                                                    ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/30'
-                                                    : 'bg-gray-600/20 text-gray-300 border-gray-500/30'
+                                                    ? 'bg-[#537547]/10 text-[#537547] border-[#537547]/30'
+                                                    : 'bg-gray-100 text-gray-700 border-gray-200'
                                             }`}>
                                             {user.role === 'admin' && <Shield className="w-3 h-3" />}
                                             {user.role === 'staff' && <User className="w-3 h-3" />}
@@ -216,8 +221,8 @@ export default function ProfilePage() {
                                                 className={cn(
                                                     "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition-all",
                                                     isActive
-                                                        ? "bg-emerald-600/20 text-emerald-300 border-l-4 border-emerald-500"
-                                                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                                                        ? "bg-[#537547]/10 text-[#537547] border-l-4 border-[#537547]"
+                                                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                                                 )}
                                             >
                                                 <Icon className="w-5 h-5" />
@@ -233,7 +238,7 @@ export default function ProfilePage() {
                                         <Link href="/dashboard" className="block">
                                             <Button
                                                 variant="outline"
-                                                className="w-full border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                                className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-[#537547]"
                                             >
                                                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -245,10 +250,10 @@ export default function ProfilePage() {
                                 )}
 
                                 {/* Logout Button */}
-                                <div className="mt-6 pt-6 border-t border-white/10">
+                                <div className="mt-6 pt-6 border-t border-gray-100">
                                     <button
                                         onClick={handleLogout}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 text-red-400 hover:text-red-300 hover:bg-red-500/10 font-medium transition-all"
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-medium transition-all"
                                     >
                                         <LogOut className="w-5 h-5" />
                                         ออกจากระบบ
@@ -258,83 +263,83 @@ export default function ProfilePage() {
                         </div>
 
                         {/* Right Content Area */}
-                        <div className="flex-1">
-                            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-xl">
+                        <div className={`flex-1 scroll-animate fade-up stagger-3 ${mounted ? 'is-visible' : ''}`}>
+                            <div className="bg-white border border-gray-200 shadow-sm rounded-3xl p-6 sm:p-8">
 
                                 {/* Profile Tab */}
                                 {activeTab === 'profile' && (
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-500 mb-2">
+                                    <div className="animate-fade-in">
+                                        <h2 className="text-2xl font-bold tracking-tight text-[#6f7e0d] mb-2">
                                             Profile Information
                                         </h2>
-                                        <p className="text-gray-400 text-sm mb-8">
+                                        <p className="text-gray-500 text-sm mb-8">
                                             ข้อมูลที่จะแสดงบนตั๋วและใช้ยืนยันตัวตนก่อนเข้างาน
                                         </p>
 
                                         <div className="space-y-4">
                                             {/* Name */}
-                                            <div className="flex items-center gap-4 py-4 border-b border-white/10">
-                                                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                                                    <User className="w-5 h-5 text-emerald-400" />
+                                            <div className="flex items-center gap-4 py-4 border-b border-gray-100">
+                                                <div className="w-10 h-10 rounded-xl bg-[#537547]/10 flex items-center justify-center">
+                                                    <User className="w-5 h-5 text-[#537547]" />
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-gray-400">ชื่อ-นามสกุล</div>
-                                                    <div className="font-medium text-white">{user.name || 'ไม่ระบุ'}</div>
+                                                    <div className="text-sm text-gray-500">ชื่อ-นามสกุล</div>
+                                                    <div className="font-medium text-gray-900">{user.name || 'ไม่ระบุ'}</div>
                                                 </div>
                                             </div>
 
                                             {/* Email */}
-                                            <div className="flex items-center gap-4 py-4 border-b border-white/10">
-                                                <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
-                                                    <Mail className="w-5 h-5 text-green-400" />
+                                            <div className="flex items-center gap-4 py-4 border-b border-gray-100">
+                                                <div className="w-10 h-10 rounded-xl bg-[#6f7e0d]/10 flex items-center justify-center">
+                                                    <Mail className="w-5 h-5 text-[#6f7e0d]" />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <div className="text-sm text-gray-400">อีเมล</div>
-                                                    <div className="font-medium text-white">{user.email}</div>
+                                                    <div className="text-sm text-gray-500">อีเมล</div>
+                                                    <div className="font-medium text-gray-900">{user.email}</div>
                                                 </div>
                                                 <button
-                                                    className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors"
+                                                    className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
                                                 >
                                                     <Edit3 className="w-4 h-4 text-gray-400" />
                                                 </button>
                                             </div>
 
                                             {/* Phone */}
-                                            <div className="flex items-center gap-4 py-4 border-b border-white/10">
-                                                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                                                    <Phone className="w-5 h-5 text-blue-400" />
+                                            <div className="flex items-center gap-4 py-4 border-b border-gray-100">
+                                                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                                                    <Phone className="w-5 h-5 text-blue-600" />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <div className="text-sm text-gray-400">เบอร์โทรศัพท์</div>
-                                                    <div className="font-medium text-white">-</div>
+                                                    <div className="text-sm text-gray-500">เบอร์โทรศัพท์</div>
+                                                    <div className="font-medium text-gray-900">{user.phone || '-'}</div>
                                                 </div>
                                                 <button
                                                     onClick={() => setIsEditModalOpen(true)}
-                                                    className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors"
+                                                    className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
                                                 >
                                                     <Edit3 className="w-4 h-4 text-gray-400" />
                                                 </button>
                                             </div>
 
                                             {/* User ID */}
-                                            <div className="flex items-center gap-4 py-4 border-b border-white/10">
-                                                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                                                    <IdCard className="w-5 h-5 text-purple-400" />
+                                            <div className="flex items-center gap-4 py-4 border-b border-gray-100">
+                                                <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                                                    <IdCard className="w-5 h-5 text-purple-600" />
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-gray-400">User ID</div>
-                                                    <div className="font-medium font-mono text-white">{user.id}</div>
+                                                    <div className="text-sm text-gray-500">User ID</div>
+                                                    <div className="font-medium font-mono text-gray-900">{user.id || '-'}</div>
                                                 </div>
                                             </div>
 
                                             {/* Role */}
-                                            <div className="flex items-center gap-4 py-4 border-b border-emerald-500/50">
-                                                <div className="w-10 h-10 rounded-xl bg-teal-500/20 flex items-center justify-center">
-                                                    <Shield className="w-5 h-5 text-teal-400" />
+                                            <div className="flex items-center gap-4 py-4 border-b border-gray-100">
+                                                <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+                                                    <Shield className="w-5 h-5 text-teal-600" />
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm text-gray-400">บทบาท</div>
-                                                    <div className="font-medium text-white capitalize">{user.role}</div>
+                                                    <div className="text-sm text-gray-500">บทบาท</div>
+                                                    <div className="font-medium text-gray-900 capitalize">{user.role}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -342,10 +347,10 @@ export default function ProfilePage() {
                                         {/* Quick Links */}
                                         <div className="mt-8 grid md:grid-cols-2 gap-4">
                                             <Link href="/events" className="block">
-                                                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-emerald-500/50 hover:bg-white/10 transition-all group">
+                                                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5 hover:border-[#6f7e0d]/30 hover:bg-[#6f7e0d]/5 transition-all group">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                            <Calendar className="w-6 h-6 text-emerald-400" />
+                                                        <div className="w-12 h-12 rounded-xl bg-[#6f7e0d]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                            <Calendar className="w-6 h-6 text-[#6f7e0d]" />
                                                         </div>
                                                         <div>
                                                             <div className="font-bold">ดูงานประชุม</div>
@@ -356,14 +361,14 @@ export default function ProfilePage() {
                                             </Link>
 
                                             <Link href="/contact" className="block">
-                                                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-green-500/50 hover:bg-white/10 transition-all group">
+                                                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5 hover:border-blue-500/30 hover:bg-blue-50/50 transition-all group">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                            <Mail className="w-6 h-6 text-green-400" />
+                                                        <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                            <Mail className="w-6 h-6 text-blue-600" />
                                                         </div>
                                                         <div>
-                                                            <div className="font-bold">ติดต่อเรา</div>
-                                                            <div className="text-sm text-gray-400">ต้องการความช่วยเหลือ?</div>
+                                                            <div className="font-bold text-gray-900">ติดต่อเรา</div>
+                                                            <div className="text-sm text-gray-500">ต้องการความช่วยเหลือ?</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -374,11 +379,11 @@ export default function ProfilePage() {
 
                                 {/* My Ticket Tab */}
                                 {activeTab === 'tickets' && (
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-500 mb-2">
+                                    <div className="animate-fade-in">
+                                        <h2 className="text-2xl font-bold tracking-tight text-[#6f7e0d] mb-2">
                                             My Tickets
                                         </h2>
-                                        <p className="text-gray-400 text-sm mb-8">
+                                        <p className="text-gray-500 text-sm mb-8">
                                             ตั๋วงานประชุมที่คุณจองไว้
                                         </p>
 
@@ -392,7 +397,7 @@ export default function ProfilePage() {
                                                 <Ticket className="w-16 h-16 mx-auto mb-4 opacity-50" />
                                                 <p className="text-lg">ยังไม่มีตั๋ว</p>
                                                 <Link href="/events">
-                                                    <Button className="mt-4 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700">
+                                                    <Button className="mt-4 bg-[#537547] hover:bg-[#6f7e0d] text-white">
                                                         ดูงานประชุม
                                                     </Button>
                                                 </Link>
@@ -402,31 +407,31 @@ export default function ProfilePage() {
                                                 {myTickets.map((ticket) => (
                                                     <div
                                                         key={ticket.id}
-                                                        className="bg-gradient-to-r from-emerald-900/20 to-green-900/20 border border-emerald-500/30 rounded-2xl p-5 hover:border-emerald-500/50 transition-all"
+                                                        className="bg-white border border-gray-200 shadow-sm rounded-2xl p-5 hover:border-[#6f7e0d]/50 hover:shadow-md transition-all"
                                                     >
                                                         <div className="flex justify-between items-start">
                                                             <div>
-                                                                <h4 className="font-bold text-white text-lg">{ticket.event?.eventName || 'Unknown Event'}</h4>
-                                                                <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-400">
+                                                                <h4 className="font-bold text-gray-900 text-lg">{ticket.event?.eventName || 'Unknown Event'}</h4>
+                                                                <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-500">
                                                                     <span className="flex items-center gap-2">
-                                                                        <Calendar className="w-4 h-4 text-emerald-400" />
+                                                                        <Calendar className="w-4 h-4 text-[#537547]" />
                                                                         {ticket.event?.startDate
                                                                             ? `${new Date(ticket.event.startDate).toLocaleDateString('th-TH', { year: '2-digit', month: 'short', day: 'numeric' })} ${new Date(ticket.event.startDate).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} - ${ticket.event.endDate ? new Date(ticket.event.endDate).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : ''}`
                                                                             : '-'}
                                                                     </span>
                                                                     <span className="flex items-center gap-2">
-                                                                        <Building2 className="w-4 h-4 text-emerald-400" />
+                                                                        <Building2 className="w-4 h-4 text-[#537547]" />
                                                                         {ticket.event?.location || 'TBA'}
                                                                     </span>
                                                                 </div>
-                                                                <div className="mt-2 text-xs text-gray-500 font-mono">{ticket.regCode}</div>
+                                                                <div className="mt-2 text-xs text-gray-400 font-mono">{ticket.regCode}</div>
                                                             </div>
                                                             <div className="flex flex-col items-end gap-3">
                                                                 <span className={cn(
-                                                                    "inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm border",
+                                                                    "inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium border",
                                                                     ticket.status === 'confirmed'
-                                                                        ? "bg-emerald-600/20 text-emerald-300 border-emerald-500/30"
-                                                                        : "bg-yellow-600/20 text-yellow-300 border-yellow-500/30"
+                                                                        ? "bg-[#537547]/10 text-[#537547] border-[#537547]/30"
+                                                                        : "bg-yellow-50 text-yellow-700 border-yellow-200"
                                                                 )}>
                                                                     {ticket.status === 'confirmed' ? <CheckCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
                                                                     {ticket.status === 'confirmed' ? (ticket.ticketType?.name || 'Ticket') : 'Waiting Payment'}
@@ -454,11 +459,11 @@ export default function ProfilePage() {
 
                                 {/* Payment History Tab */}
                                 {activeTab === 'payment' && (
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-500 mb-2">
+                                    <div className="animate-fade-in">
+                                        <h2 className="text-2xl font-bold tracking-tight text-[#6f7e0d] mb-2">
                                             Payment History
                                         </h2>
-                                        <p className="text-gray-400 text-sm mb-6">
+                                        <p className="text-gray-500 text-sm mb-6">
                                             ประวัติการชำระเงินทั้งหมด
                                         </p>
 
@@ -477,8 +482,8 @@ export default function ProfilePage() {
                                                     className={cn(
                                                         "px-4 py-2 rounded-full text-sm font-medium transition-all",
                                                         paymentStatusFilter === filter.key
-                                                            ? "bg-emerald-600 text-white"
-                                                            : "bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
+                                                            ? "bg-[#537547] text-white"
+                                                            : "bg-gray-50 border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                                                     )}
                                                 >
                                                     {filter.label}
@@ -493,7 +498,7 @@ export default function ProfilePage() {
                                             </div>
                                         ) : filteredPayments.length === 0 ? (
                                             <div className="text-center py-16 text-gray-400">
-                                                <Receipt className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                                                <Receipt className="w-16 h-16 mx-auto mb-4 opacity-50 text-gray-300" />
                                                 <p className="text-lg">ไม่พบรายการ</p>
                                             </div>
                                         ) : (
@@ -508,29 +513,29 @@ export default function ProfilePage() {
                                                             className={cn(
                                                                 "rounded-2xl p-5 transition-all",
                                                                 payment.payment?.status === 'pending'
-                                                                    ? "bg-gradient-to-r from-orange-900/20 to-red-900/20 border-2 border-orange-500/30"
-                                                                    : "bg-white/5 border border-white/10 hover:border-white/20"
+                                                                    ? "bg-orange-50 border border-orange-200"
+                                                                    : "bg-white border border-gray-200 hover:border-[#6f7e0d]/50 hover:shadow-sm"
                                                             )}
                                                         >
                                                             {/* Header with Order Date and Purchase Number */}
-                                                            <div className="flex justify-between items-center mb-4 text-sm text-gray-400">
+                                                            <div className="flex justify-between items-center mb-4 text-sm text-gray-500">
                                                                 <span>Order on {payment.createdAt ? new Date(payment.createdAt).toLocaleString('th-TH') : '-'}</span>
-                                                                <span className="font-mono">Purchase Number {payment.regCode}</span>
+                                                                <span className="font-mono text-gray-400">Purchase Number {payment.regCode}</span>
                                                             </div>
 
                                                             {/* Event Name */}
-                                                            <h4 className="font-bold text-white text-lg">{payment.event?.eventName || 'Unknown Event'}</h4>
+                                                            <h4 className="font-bold text-gray-900 text-lg">{payment.event?.eventName || 'Unknown Event'}</h4>
 
                                                             {/* Ticket Info */}
                                                             <div className="flex justify-between items-center mt-3">
-                                                                <div className="text-sm text-gray-400">
+                                                                <div className="text-sm text-gray-500">
                                                                     <div className="flex items-center gap-2">
-                                                                        <Ticket className="w-4 h-4 text-orange-400" />
-                                                                        {payment.ticketType?.name || 'Ticket'} : {payment.event?.startDate ? new Date(payment.event.startDate).toLocaleDateString('th-TH') : '-'}
+                                                                        <Ticket className="w-4 h-4 text-orange-500" />
+                                                                        {payment.ticketType?.name || 'Ticket'} <span className="text-gray-300 mx-1">|</span> {payment.event?.startDate ? new Date(payment.event.startDate).toLocaleDateString('th-TH') : '-'}
                                                                     </div>
                                                                 </div>
                                                                 <div className="text-right">
-                                                                    <span className="font-bold text-xl text-emerald-400">
+                                                                    <span className="font-bold text-xl text-[#537547]">
                                                                         {parseFloat(payment.payment?.amount || '0').toLocaleString()} THB
                                                                     </span>
                                                                 </div>
@@ -538,16 +543,16 @@ export default function ProfilePage() {
 
                                                             {/* Status Badge and Purchase Again Button */}
                                                             {payment.payment?.status === 'pending' ? (
-                                                                <div className="mt-4 pt-4 border-t border-orange-500/30">
+                                                                <div className="mt-4 pt-4 border-t border-orange-200">
                                                                     <div className="flex justify-between items-center">
                                                                         <div className="text-sm">
-                                                                            <p className="text-gray-400">Please purchase by <span className="text-orange-400 font-semibold">QR code</span> or</p>
-                                                                            <Link href={`/events/${payment.event?.id}`} className="text-orange-400 hover:text-orange-300 underline">
+                                                                            <p className="text-gray-600">Please purchase by <span className="text-orange-600 font-semibold">QR code</span> or</p>
+                                                                            <Link href={`/events/${payment.event?.id}`} className="text-orange-600 hover:text-orange-700 underline">
                                                                                 change purchase channel
                                                                             </Link>
                                                                         </div>
                                                                         <Link href={`/events/${payment.event?.id}`}>
-                                                                            <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold px-6 py-2 rounded-full">
+                                                                            <Button className="bg-[#537547] hover:bg-[#6f7e0d] text-white font-bold px-6 py-2 rounded-full shadow-sm hover:shadow-md transition-all">
                                                                                 Purchase again
                                                                             </Button>
                                                                         </Link>
@@ -585,10 +590,10 @@ export default function ProfilePage() {
             {/* Edit Profile Modal */}
             {/* QR Code View Modal */}
             <Dialog open={!!viewingQrTicket} onOpenChange={(open) => !open && setViewingQrTicket(null)}>
-                <DialogContent className="bg-zinc-900 border-zinc-800 text-white sm:max-w-md">
+                <DialogContent className="bg-white border-gray-200 text-gray-900 sm:max-w-md shadow-xl">
                     <DialogHeader>
-                        <DialogTitle className="text-center text-xl">Ticket QR Code</DialogTitle>
-                        <DialogDescription className="text-center text-gray-400">
+                        <DialogTitle className="text-center text-xl text-[#6f7e0d]">Ticket QR Code</DialogTitle>
+                        <DialogDescription className="text-center text-gray-500">
                             Show this QR code at the event entrance for check-in
                         </DialogDescription>
                     </DialogHeader>
@@ -605,70 +610,70 @@ export default function ProfilePage() {
             </Dialog>
 
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                <DialogContent className="bg-gray-950 border-white/10 text-white max-w-md">
+                <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-md shadow-xl">
                     <DialogHeader>
-                        <DialogTitle className="text-xl">แก้ไขข้อมูลส่วนตัว</DialogTitle>
-                        <DialogDescription className="text-gray-400">
+                        <DialogTitle className="text-xl text-[#6f7e0d]">แก้ไขข้อมูลส่วนตัว</DialogTitle>
+                        <DialogDescription className="text-gray-500">
                             อัปเดตข้อมูลของคุณ
                         </DialogDescription>
                     </DialogHeader>
 
                     <form onSubmit={handleEditSubmit} className="space-y-4 mt-4">
                         <div className="space-y-2">
-                            <Label htmlFor="name">ชื่อ-นามสกุล</Label>
+                            <Label htmlFor="name" className="text-gray-700">ชื่อ-นามสกุล</Label>
                             <Input
                                 id="name"
                                 value={editForm.name}
                                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                className="bg-white/5 border-white/10"
+                                className="bg-gray-50 border-gray-200 focus:border-[#537547]"
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="email">อีเมล</Label>
+                            <Label htmlFor="email" className="text-gray-700">อีเมล</Label>
                             <Input
                                 id="email"
                                 type="email"
                                 value={editForm.email}
                                 disabled
-                                className="bg-white/5 border-white/10 opacity-50"
+                                className="bg-gray-100 border-gray-200 text-gray-500"
                             />
                             <p className="text-xs text-gray-500">ไม่สามารถแก้ไขอีเมลได้</p>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="phone">เบอร์โทรศัพท์</Label>
+                            <Label htmlFor="phone" className="text-gray-700">เบอร์โทรศัพท์</Label>
                             <Input
                                 id="phone"
                                 value={editForm.phone}
                                 onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                                className="bg-white/5 border-white/10"
+                                className="bg-gray-50 border-gray-200 focus:border-[#537547]"
                                 placeholder="08X-XXX-XXXX"
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="organization">หน่วยงาน/องค์กร</Label>
+                            <Label htmlFor="organization" className="text-gray-700">หน่วยงาน/องค์กร</Label>
                             <Input
                                 id="organization"
                                 value={editForm.organization}
                                 onChange={(e) => setEditForm({ ...editForm, organization: e.target.value })}
-                                className="bg-white/5 border-white/10"
+                                className="bg-gray-50 border-gray-200 focus:border-[#537547]"
                             />
                         </div>
 
                         <DialogFooter className="mt-6">
                             <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 onClick={() => setIsEditModalOpen(false)}
-                                className="text-gray-400 hover:text-white"
+                                className="border-gray-200 text-gray-600 hover:bg-gray-50"
                             >
                                 ยกเลิก
                             </Button>
                             <Button
                                 type="submit"
-                                className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+                                className="bg-[#537547] hover:bg-[#6f7e0d] text-white"
                             >
                                 บันทึก
                             </Button>

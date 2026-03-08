@@ -42,7 +42,7 @@ export const authApi = {
             body: formData,
         }),
 
-    me: () => api.get<{ success: boolean; user: User }>('/auth/me'),
+    me: () => api.get<{ success: boolean; user: User }>('/api/users/profile'),
 
     logout: () => {
         if (typeof window !== 'undefined') {

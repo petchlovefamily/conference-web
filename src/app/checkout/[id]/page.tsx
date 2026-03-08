@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { MOCK_EVENTS } from '@/lib/mockData';
 import { getEventById } from '@/lib/services';
 
 import { Round, TicketType } from '@/types';
@@ -165,27 +164,53 @@ export default function CheckoutPage() {
                 return;
             }
 
-            // 2. Mock Registration - simulate API delay
-            const isMember = (isLoggedIn && user?.role === 'member') || formData.licenseNumber;
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // 2. Real Registration
+            const { createRegistration, createCheckoutSession } = await import('@/lib/services');
+            const regRequest = {
+                eventId: eventId,
+                ticketTypeId: String(finalTicketType.id),
+                attendeeType: 'public',
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                phone: formData.phone,
+                organization: formData.organization,
+                licenseNumber: formData.licenseNumber,
+            };
 
-            const mockRegCode = `REG-${Date.now().toString(36).toUpperCase()}`;
-            const mockRegId = Date.now();
-            setRegistrationData({ id: mockRegId, regCode: mockRegCode });
+            const regResponse = await createRegistration(regRequest);
+            if (!regResponse.registration?.id) throw new Error('Registration failed');
+
+            const regId = Number(regResponse.registration.id);
+            const regCode = regResponse.registration.registrationNumber;
+            setRegistrationData({ id: regId, regCode });
 
             // 3. Check if ticket is free
             const finalPrice = parseFloat(finalTicketType.price?.toString() || '0');
 
-            if (finalPrice === 0) {
-                // Free ticket - go directly to success page
+            if (finalPrice <= 0) {
                 sessionStorage.removeItem(`checkout-${eventId}`);
-                router.push(`/success?code=${mockRegCode}`);
+                router.push(`/success?code=${regCode}`);
                 return;
             }
 
-            // 4. Mock Payment - simulate payment success and redirect
-            sessionStorage.removeItem(`checkout-${eventId}`);
-            router.push(`/success?code=${mockRegCode}&payment_intent=mock_pi_${Date.now()}`);
+            // 4. Payment process
+            const baseUrl = window.location.origin;
+            const checkout = await createCheckoutSession(
+                String(regId),
+                `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+                `${baseUrl}/checkout/${eventId}`
+            );
+
+            if (checkout.checkoutUrl) {
+                // Redirect to stripe checkout
+                sessionStorage.removeItem(`checkout-${eventId}`);
+                window.location.href = checkout.checkoutUrl;
+            } else {
+                // Fallback / QR code payment page
+                sessionStorage.removeItem(`checkout-${eventId}`);
+                router.push(`/payment/${eventId}?amount=${totalPrice}&method=${paymentMethod}&round=${roundId}`);
+            }
             setIsSubmitting(false);
 
         } catch (error) {

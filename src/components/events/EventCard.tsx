@@ -56,9 +56,9 @@ export function EventCard({ event, variant = 'default' }: EventCardProps) {
     return (
         <div className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-[#537547]/50 transition-all duration-300 hover:shadow-lg hover:shadow-[#537547]/10">
             {/* Image */}
-            <div className="relative aspect-[16/10] overflow-hidden">
+            <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
                 <img
-                    src={event.coverImage || event.image || 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=800&auto=format&fit=crop'}
+                    src={event.imageUrl || event.image || 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=800&auto=format&fit=crop'}
                     alt={event.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />

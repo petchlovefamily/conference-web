@@ -1,6 +1,8 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { getEventById } from '@/lib/services';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
@@ -9,29 +11,37 @@ import {
     Download, Home, Ticket, ArrowRight, Sparkles
 } from 'lucide-react';
 import Link from 'next/link';
-import { MOCK_EVENTS } from '@/lib/mockData';
 import { Round } from '@/types';
 
 import { Suspense } from 'react';
 
 function PaymentSuccessContent() {
     const searchParams = useSearchParams();
-    const eventId = searchParams.get('eventId') || 'event-1';
-    const roundId = searchParams.get('roundId') || 'round-1';
+    const eventId = searchParams.get('eventId') || '';
+    const roundId = searchParams.get('roundId') || '';
     const deliveryEmail = searchParams.get('email') === 'true';
     const deliverySms = searchParams.get('sms') === 'true';
 
-    // Get event data (mock)
-    const event = MOCK_EVENTS.find(e => e.id === eventId);
-    const round = event?.rounds?.find((r: Round) => r.id === roundId) || event?.rounds?.[0];
+    const { data: event, isLoading } = useQuery({
+        queryKey: ['event', eventId],
+        queryFn: async () => {
+            if (!eventId) return null;
+            const result = await getEventById(eventId);
+            return result || null;
+        },
+        enabled: !!eventId,
+        retry: 1,
+    });
 
-    if (!event) {
+    if (isLoading) {
         return (
             <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
                 Loading...
             </div>
         );
     }
+
+    const round = event?.rounds?.find((r: Round) => r.id === roundId) || event?.rounds?.[0];
 
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -65,46 +75,48 @@ function PaymentSuccessContent() {
                     </div>
 
                     {/* Event Summary Card */}
-                    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-xl mb-6">
-                        <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
-                            <Ticket className="w-5 h-5 text-emerald-400" />
-                            รายละเอียดการลงทะเบียน
-                        </h2>
+                    {event && (
+                        <div className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-xl mb-6">
+                            <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
+                                <Ticket className="w-5 h-5 text-emerald-400" />
+                                รายละเอียดการลงทะเบียน
+                            </h2>
 
-                        <div className="flex gap-4 mb-4">
-                            <img
-                                src={event.coverImage}
-                                alt={event.name}
-                                className="w-20 h-20 rounded-xl object-cover bg-gray-800"
-                            />
-                            <div>
-                                <h3 className="font-bold">{event.name}</h3>
-                                <div className="text-sm text-gray-400 space-y-1 mt-1">
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4" />
-                                        {round?.date} เวลา {round?.time}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <MapPin className="w-4 h-4" />
-                                        {round?.location}
+                            <div className="flex gap-4 mb-4">
+                                <img
+                                    src={event.coverImage}
+                                    alt={event.name}
+                                    className="w-20 h-20 rounded-xl object-cover bg-gray-800"
+                                />
+                                <div>
+                                    <h3 className="font-bold">{event.name}</h3>
+                                    <div className="text-sm text-gray-400 space-y-1 mt-1">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar className="w-4 h-4" />
+                                            {round?.date} เวลา {round?.time}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <MapPin className="w-4 h-4" />
+                                            {round?.location}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="border-t border-white/10 pt-4">
-                            <div className="flex justify-between mb-2">
-                                <span className="text-gray-400">ค่าลงทะเบียน</span>
-                                <span className="font-bold text-green-400">฿{event.price?.toLocaleString()}</span>
-                            </div>
-                            {event.cpeCredits && (
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">หน่วยกิต CPE</span>
-                                    <span className="font-bold text-emerald-400">{event.cpeCredits} หน่วยกิต</span>
+                            <div className="border-t border-white/10 pt-4">
+                                <div className="flex justify-between mb-2">
+                                    <span className="text-gray-400">ค่าลงทะเบียน</span>
+                                    <span className="font-bold text-green-400">฿{event.price?.toLocaleString()}</span>
                                 </div>
-                            )}
+                                {event.cpeCredits && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">หน่วยกิต CPE</span>
+                                        <span className="font-bold text-emerald-400">{event.cpeCredits} หน่วยกิต</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* E-Ticket Delivery Info */}
                     <div className="bg-gradient-to-br from-emerald-900/30 to-green-900/30 border border-emerald-500/20 rounded-3xl p-6 backdrop-blur-xl mb-6">

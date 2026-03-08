@@ -13,11 +13,11 @@ import { AlertCircle, Mail, Lock, User, Phone, Sparkles, ArrowRight, ArrowLeft, 
 import Link from 'next/link';
 
 const accountTypes = [
-    { value: 'thaiStudent', label: 'นักศึกษา', icon: GraduationCap, description: 'Thai Student' },
     { value: 'thaiProfessional', label: 'เภสัชกร', icon: Briefcase, description: 'Thai Professional' },
+    { value: 'generalPublic', label: 'บุคคลทั่วไป', icon: User, description: 'General Public' },
 ] as const;
 
-type AccountType = 'thaiStudent' | 'thaiProfessional';
+type AccountType = 'thaiProfessional' | 'generalPublic';
 
 const registerSchema = z.object({
     firstName: z.string().min(1, 'กรุณากรอกชื่อ'),
@@ -42,7 +42,6 @@ export default function RegisterPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [accountType, setAccountType] = useState<AccountType>('thaiProfessional');
-    const isStudent = accountType === 'thaiStudent';
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -64,6 +63,9 @@ export default function RegisterPage() {
             formData.append('email', data.email);
             formData.append('password', data.password);
             formData.append('accountType', accountType);
+
+            // Tell the backend this registration came from conference-web
+            formData.append('source', 'conference-web');
 
             if (data.phone) formData.append('phone', data.phone);
             if (data.organization) formData.append('organization', data.organization);
@@ -277,13 +279,13 @@ export default function RegisterPage() {
                             {/* Organization */}
                             <div className="space-y-2">
                                 <Label htmlFor="organization" className="text-gray-700">
-                                    {isStudent ? 'สถาบันการศึกษา' : 'หน่วยงาน/องค์กร'} <span className="text-gray-400">(ไม่บังคับ)</span>
+                                    หน่วยงาน/องค์กร <span className="text-gray-400">(ไม่บังคับ)</span>
                                 </Label>
                                 <div className="relative">
                                     <Building2 className="absolute left-4 top-3 h-5 w-5 text-gray-500" />
                                     <Input
                                         id="organization"
-                                        placeholder={isStudent ? 'มหาวิทยาลัย...' : 'โรงพยาบาล/บริษัท...'}
+                                        placeholder="โรงพยาบาล/บริษัท..."
                                         className="pl-12 h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
                                         {...register('organization')}
                                     />
@@ -302,20 +304,18 @@ export default function RegisterPage() {
                                 />
                             </div>
 
-                            {/* Pharmacy License (for professionals) */}
-                            {!isStudent && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="pharmacyLicenseId" className="text-gray-700">
-                                        เลขใบอนุญาต <span className="text-gray-400">(ไม่บังคับ)</span>
-                                    </Label>
-                                    <Input
-                                        id="pharmacyLicenseId"
-                                        placeholder="ภ.XXXXX"
-                                        className="h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
-                                        {...register('pharmacyLicenseId')}
-                                    />
-                                </div>
-                            )}
+                            {/* Pharmacy License */}
+                            <div className="space-y-2">
+                                <Label htmlFor="pharmacyLicenseId" className="text-gray-700">
+                                    เลขใบอนุญาต <span className="text-gray-400">(ไม่บังคับ)</span>
+                                </Label>
+                                <Input
+                                    id="pharmacyLicenseId"
+                                    placeholder="ภ.XXXXX"
+                                    className="h-11 bg-gray-50 border-gray-200 rounded-xl focus:border-[#537547] text-gray-900 placeholder:text-gray-400"
+                                    {...register('pharmacyLicenseId')}
+                                />
+                            </div>
 
 
 
