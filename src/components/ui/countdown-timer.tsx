@@ -74,7 +74,7 @@ export function CountdownTimer({ targetDate, className = '' }: CountdownTimerPro
                     <div className="text-xs text-gray-400">Mins</div>
                 </div>
                 <div className="bg-[#537547]/10 border border-[#537547]/20 rounded-xl p-3 text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-green-400 animate-pulse">{timeLeft.seconds.toString().padStart(2, '0')}</div>
+                    <div className="text-2xl md:text-3xl font-bold text-[#537547] animate-pulse">{timeLeft.seconds.toString().padStart(2, '0')}</div>
                     <div className="text-xs text-gray-400">Secs</div>
                 </div>
             </div>

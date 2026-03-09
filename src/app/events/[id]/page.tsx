@@ -50,11 +50,11 @@ export default function EventDetailPage() {
 
     // Session selection state
     const [selectedSessions, setSelectedSessions] = useState<string[]>([]);
-    
+
     // Accordion state for sessions
     const [expandedSessions, setExpandedSessions] = useState<string[]>([]);
     const toggleSessionAccordion = (id: string) => {
-        setExpandedSessions(prev => 
+        setExpandedSessions(prev =>
             prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
         );
     };
@@ -150,7 +150,7 @@ export default function EventDetailPage() {
         if (!event?.ticketTypes || event.ticketTypes.length === 0) return null;
 
         // Filter out add-on tickets
-        const primaryTickets = event.ticketTypes.filter(t => (t as any).category !== 'addon');
+        const primaryTickets = event.ticketTypes.filter(t => t.ticketCategory !== 'addon');
         if (primaryTickets.length === 0) return null;
 
         const now = new Date();
@@ -205,7 +205,7 @@ export default function EventDetailPage() {
     const autoSelectedTicket = getAutoSelectedTicket();
 
     // Get add-on tickets
-    const addonTickets = event.ticketTypes?.filter(t => (t as any).category === 'addon') || [];
+    const addonTickets = event.ticketTypes?.filter(t => t.ticketCategory === 'addon') || [];
     const selectedAddonTickets = event.ticketTypes?.filter(t => selectedAddons.includes(String(t.id))) || [];
     const addonsTotal = selectedAddonTickets.reduce((sum, t) => sum + Number(t.price || 0), 0);
     const basePrice = Number(autoSelectedTicket?.price || 0);
@@ -216,10 +216,16 @@ export default function EventDetailPage() {
             <Navbar />
 
             {/* Hero Section - Responsive */}
-            <section className="relative h-[50vh] sm:h-[55vh] md:h-[60vh] min-h-[400px] md:min-h-[500px] w-full">
-                <div className="absolute inset-0">
-                    <img src={event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'} alt={event.name} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+            <section className="relative h-[50vh] sm:h-[55vh] md:h-[60vh] min-h-[400px] md:min-h-[500px] w-full bg-black">
+                <div className="absolute inset-0 overflow-hidden">
+                    {event.videoUrl ? (
+                        <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                            <video src={event.videoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                        </div>
+                    ) : (
+                        <img src={event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070&auto=format&fit=crop'} alt={event.name} className="w-full h-full object-cover" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 from-0% via-transparent via-40% to-transparent z-10 pointer-events-none" />
                 </div>
 
                 <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-8 lg:p-12">
@@ -248,12 +254,16 @@ export default function EventDetailPage() {
                             <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-white flex-shrink-0" />
                                 <span className="truncate">
-                                    {currentRound?.date ? new Date(currentRound.date).toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBA'}
+                                    {currentRound?.date
+                                        ? new Date(currentRound.date).toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                                        : event.startDate
+                                            ? new Date(event.startDate).toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                                            : 'TBA'}
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-white flex-shrink-0" />
-                                <span className="truncate">{currentRound?.location || 'TBA'}</span>
+                                <span className="truncate">{currentRound?.location || event.location || 'TBA'}</span>
                             </div>
                         </div>
                     </div>
@@ -451,7 +461,7 @@ export default function EventDetailPage() {
                                     )}
                                 </button>
                                 <div className="flex flex-col justify-center space-y-3 sm:space-y-4">
-                                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">{currentRound?.location || 'TBA'}</h3>
+                                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">{currentRound?.location || event.location || 'TBA'}</h3>
                                     <div className="space-y-2 sm:space-y-3">
                                         <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
                                             <CheckCircle className="w-4 h-4 text-[#537547] flex-shrink-0" />

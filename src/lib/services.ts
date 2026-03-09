@@ -53,6 +53,7 @@ function mapApiEventToEvent(apiEvent: any): Event {
         registrationOpens: apiEvent.registrationOpens || '',
         registrationCloses: apiEvent.registrationCloses || '',
         coverImage: apiEvent.coverImage || '',
+        videoUrl: apiEvent.videoUrl || '',
         venueImage: apiEvent.venueImage || '',
         imageUrl: apiEvent.imageUrl || '',
         image: apiEvent.imageUrl || '',
@@ -61,7 +62,11 @@ function mapApiEventToEvent(apiEvent: any): Event {
         category: apiEvent.category || '',
         createdAt: apiEvent.createdAt || '',
         // Pass through nested data if present
-        ticketTypes: apiEvent.ticketTypes || [],
+        ticketTypes: (apiEvent.ticketTypes || []).map((t: any) => ({
+            ...t,
+            ticketCategory: t.ticketCategory || t.category,
+            category: t.priority || t.category,
+        })),
         sessions: apiEvent.sessions || [],
         speakers: apiEvent.speakers || [],
         images: apiEvent.images || [],
