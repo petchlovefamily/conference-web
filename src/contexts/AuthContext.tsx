@@ -12,6 +12,7 @@ interface User {
     delegateType?: string;
     isThai?: boolean;
     phone?: string | null;
+    pharmacyLicenseId?: string | null;
     // Computed display name for backward compatibility
     name: string;
 }

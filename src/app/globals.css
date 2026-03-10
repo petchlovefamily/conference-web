@@ -81,6 +81,12 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
+
+  /* Hide browser default password reveal button */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
 }
 
 /* Custom Gradients */

@@ -27,6 +27,8 @@ import {
 
 
 
+import { calculatePaySolutionsFeeExact, resolvePaySolutionsFeeMethod } from '@/lib/paySolutionsFee';
+
 export default function CheckoutPage() {
     const params = useParams();
     const searchParams = useSearchParams();
@@ -43,7 +45,6 @@ export default function CheckoutPage() {
 
     const { ref: formRef, isVisible: formVisible } = useScrollAnimation({ rootMargin: '0px 0px -20px 0px' });
     const { ref: paymentRef, isVisible: paymentVisible } = useScrollAnimation();
-    const { ref: deliveryRef, isVisible: deliveryVisible } = useScrollAnimation();
     const { ref: summaryRef, isVisible: summaryVisible } = useScrollAnimation();
 
     const [formData, setFormData] = useState({
@@ -55,11 +56,7 @@ export default function CheckoutPage() {
         organization: ''
     });
 
-    // E-Ticket Delivery Options
-    const [deliveryOptions, setDeliveryOptions] = useState({
-        sendViaEmail: true,
-        sendViaSms: false
-    });
+
 
     // Stripe Elements state
     const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -145,7 +142,19 @@ export default function CheckoutPage() {
     const addonsTotal = selectedAddons.reduce((sum: number, addon: TicketType) =>
         sum + parseFloat(addon.price?.toString() || '0'), 0
     );
-    const totalPrice = ticketPrice + addonsTotal;
+
+    // Calculate Base Net Amount
+    const netAmount = ticketPrice + addonsTotal;
+
+    // Apply Promo Code (Assume no promo for now, or just placeholders if they exist in checkout later)
+    // NOTE: The previous checkout didn't have promo code parsing logic from URL yet, so we assume netAmount.
+
+    // Calculate Final Total including Fees
+    const feeMethod = resolvePaySolutionsFeeMethod(paymentMethod === 'qr' ? 'qr' : 'card', 'THB');
+    const feeBreakdown = calculatePaySolutionsFeeExact(netAmount, feeMethod);
+
+    const totalPrice = feeBreakdown.total;
+    const totalFee = feeBreakdown.fee;
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -379,80 +388,13 @@ export default function CheckoutPage() {
                                         <div className="mt-6 p-4 bg-[#537547]/10 border border-[#537547]/20 rounded-lg text-gray-700 text-sm flex items-start gap-2">
                                             <div className="mt-1 w-2 h-2 rounded-full bg-[#537547] flex-shrink-0" />
                                             <span>
-                                                การชำระเงินผ่านบัตรเครดิตดำเนินการผ่าน Ksher กรุณากรอกข้อมูลบัตรในหน้าต่างถัดไป
+                                                การชำระเงินผ่านบัตรเครดิตดำเนินการผ่าน Pay Solutions กรุณากรอกข้อมูลบัตรในหน้าต่างถัดไป
                                             </span>
                                         </div>
                                     )}
                                 </CardContent>
                             </Card>
 
-                            {/* E-Ticket Delivery Options */}
-                            <Card ref={deliveryRef} className={`bg-white border-gray-200 shadow-sm scroll-animate fade-up stagger-3 ${deliveryVisible ? 'is-visible' : ''}`}>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-gray-900">
-                                        <Send className="w-5 h-5 text-[#537547]" />
-                                        ช่องทางรับ E-Ticket
-                                    </CardTitle>
-                                    <CardDescription className="text-gray-500">เลือกช่องทางที่ต้องการรับ E-Ticket หลังชำระเงิน</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-4">
-                                        {/* Email Option */}
-                                        <label
-                                            className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${deliveryOptions.sendViaEmail
-                                                ? 'bg-[#537547]/10 border-[#537547]'
-                                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                                                }`}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={deliveryOptions.sendViaEmail}
-                                                onChange={(e) => setDeliveryOptions(prev => ({ ...prev, sendViaEmail: e.target.checked }))}
-                                                className="w-5 h-5 rounded border-gray-300 text-[#537547] focus:ring-[#537547]"
-                                            />
-                                            <Mail className={`w-6 h-6 ${deliveryOptions.sendViaEmail ? 'text-[#537547]' : 'text-gray-400'}`} />
-                                            <div className="flex-1">
-                                                <div className={`font-bold ${deliveryOptions.sendViaEmail ? 'text-gray-900' : 'text-gray-600'}`}>
-                                                    Email
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    ส่งไปที่: {formData.email || 'กรุณากรอก Email ด้านบน'}
-                                                </div>
-                                            </div>
-                                        </label>
-
-                                        {/* SMS Option */}
-                                        <label
-                                            className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${deliveryOptions.sendViaSms
-                                                ? 'bg-[#537547]/10 border-[#537547]'
-                                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                                                }`}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={deliveryOptions.sendViaSms}
-                                                onChange={(e) => setDeliveryOptions(prev => ({ ...prev, sendViaSms: e.target.checked }))}
-                                                className="w-5 h-5 rounded border-gray-300 text-[#537547] focus:ring-[#537547]"
-                                            />
-                                            <MessageSquare className={`w-6 h-6 ${deliveryOptions.sendViaSms ? 'text-[#537547]' : 'text-gray-400'}`} />
-                                            <div className="flex-1">
-                                                <div className={`font-bold ${deliveryOptions.sendViaSms ? 'text-gray-900' : 'text-gray-600'}`}>
-                                                    SMS
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    ส่งไปที่: {formData.phone || 'กรุณากรอกเบอร์โทรด้านบน'}
-                                                </div>
-                                            </div>
-                                        </label>
-                                    </div>
-
-                                    {!deliveryOptions.sendViaEmail && !deliveryOptions.sendViaSms && (
-                                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-                                            ⚠️ กรุณาเลือกอย่างน้อย 1 ช่องทางรับ E-Ticket
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
                         </div>
 
                         {/* Right: Order Summary */}
@@ -488,7 +430,7 @@ export default function CheckoutPage() {
                                         <div className="border-t border-gray-200 pt-4">
                                             <div className="flex justify-between items-center mb-2">
                                                 <span className="text-gray-500">บัตรหลัก ({finalTicketType?.name || 'General'})</span>
-                                                <span className="text-gray-900">฿{ticketPrice.toLocaleString()}</span>
+                                                <span className="text-gray-900">฿{ticketPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                             </div>
 
                                             {/* Add-ons Section */}
@@ -498,15 +440,29 @@ export default function CheckoutPage() {
                                                     {selectedAddons.map((addon: TicketType) => (
                                                         <div key={addon.id} className="flex justify-between items-center text-sm">
                                                             <span className="text-[#537547]">+ {addon.name}</span>
-                                                            <span className="text-[#537547]">฿{(typeof addon.price === 'string' ? parseFloat(addon.price) : addon.price).toLocaleString()}</span>
+                                                            <span className="text-[#537547]">฿{(typeof addon.price === 'string' ? parseFloat(addon.price) : addon.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                                         </div>
                                                     ))}
                                                 </div>
                                             )}
 
-                                            <div className="flex justify-between items-center text-xl font-bold text-[#537547] mt-4">
-                                                <span>รวมทั้งหมด</span>
-                                                <span>฿{totalPrice.toLocaleString()}</span>
+                                            <div className="space-y-2 pt-2 border-t border-gray-200">
+                                                <div className="flex justify-between items-center text-sm text-gray-500">
+                                                    <span>ราคาตั๋วและบริการ (Net)</span>
+                                                    <span>฿{netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-sm text-gray-500">
+                                                    <span>ค่าธรรมเนียมการชำระเงิน</span>
+                                                    <span>฿{totalFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                                <div className="text-[10px] text-gray-400 text-right mt-[-4px]">
+                                                    (รวม Processing Fee ฿{feeBreakdown.processingFee.toFixed(2)} และ VAT 7% ฿{feeBreakdown.processingVat.toFixed(2)})
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-between items-center text-xl font-bold text-[#537547] mt-4 pt-4 border-t border-[#537547]/20">
+                                                <span>ยอดชำระสุทธิ</span>
+                                                <span>฿{totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                             </div>
                                         </div>
                                     </CardContent>

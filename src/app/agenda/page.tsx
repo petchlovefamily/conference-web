@@ -3,21 +3,25 @@
 import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { EventWithTickets, ApiSession, ApiSpeaker } from '@/lib/api';
+import { ApiSession, ApiSpeaker } from '@/lib/api';
 import { getEvents, getEventById } from '@/lib/services';
-import { Calendar, Clock, MapPin, User, Search, Filter, ChevronRight, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, ChevronRight, AlertCircle, Layers, FileText } from 'lucide-react';
 import { format, parseISO, isSameDay, compareAsc } from 'date-fns';
 import { th } from 'date-fns/locale';
+import { Event } from '@/types';
 
 interface DayTab {
     date: Date;
     label: string;
+    sessionCount: number;
 }
 
 export default function AgendaPage() {
     const [loading, setLoading] = useState(true);
-    const [events, setEvents] = useState<EventWithTickets[]>([]);
-    const [selectedEvent, setSelectedEvent] = useState<EventWithTickets | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
+    const [events, setEvents] = useState<Event[]>([]);
+    const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const [activeDay, setActiveDay] = useState<Date | null>(null);
     const [days, setDays] = useState<DayTab[]>([]);
     const [sessions, setSessions] = useState<ApiSession[]>([]);
@@ -31,314 +35,426 @@ export default function AgendaPage() {
     const fetchInitialData = async () => {
         try {
             setLoading(true);
-            // 1. Fetch list of events (mock)
             const allEvents = await getEvents();
-            if (allEvents.length > 0) {
-                // Filter for published events and sort by date descending
-                const publishedEvents = allEvents
-                    .filter((e: any) => e.status === 'published' || !e.status)
-                    .sort((a: any, b: any) => new Date(b.startDate || b.date || '').getTime() - new Date(a.startDate || a.date || '').getTime());
+            const publishedEvents = allEvents
+                .filter((e: any) => e.status === 'published' || !e.status)
+                .sort((a: any, b: any) => new Date(b.startDate || '').getTime() - new Date(a.startDate || '').getTime());
 
-                if (publishedEvents.length === 0) {
-                    setError('No upcoming events found.');
-                    setLoading(false);
-                    return;
-                }
-
-                setEvents(publishedEvents as unknown as EventWithTickets[]);
-
-                // 2. Select the most relevant event (first one) and fetch details
-                const firstEvent = publishedEvents[0] as any;
-                await selectEvent(firstEvent.id);
-            } else {
-                setError('No events found.');
+            if (publishedEvents.length === 0) {
+                setError('ไม่พบงานประชุมในขณะนี้');
+                setLoading(false);
+                return;
             }
+
+            setEvents(publishedEvents);
+            // Auto-select the first event
+            await selectEvent(publishedEvents[0].id, publishedEvents);
         } catch (err) {
             console.error('Failed to fetch agenda data:', err);
-            setError('Failed to load agenda. Please try again later.');
+            setError('ไม่สามารถโหลดข้อมมูลได้ กรุณาลองใหม่อีกครั้ง');
         } finally {
             setLoading(false);
         }
     };
 
-    const selectEvent = async (eventId: number) => {
+    const selectEvent = async (eventId: string, eventList?: Event[]) => {
         try {
-            setLoading(true);
-            // Mock: fetch event by ID
-            const eventData = await getEventById(eventId.toString()) as unknown as EventWithTickets;
+            setLoadingDetail(true);
+            setSelectedEventId(eventId);
+            const eventData = await getEventById(eventId) as any;
             if (eventData) {
                 setSelectedEvent(eventData);
-
-                // Process sessions and speakers
                 setSessions(eventData.sessions || []);
                 setSpeakers(eventData.speakers || []);
 
-                // Generate day tabs
-                const start = new Date(eventData.startDate);
-                const end = new Date(eventData.endDate);
-                const dayTabs: DayTab[] = [];
+                // Generate day tabs from session dates
+                const sessionDates = (eventData.sessions || [])
+                    .map((s: any) => {
+                        try { return parseISO(s.startTime); } catch { return null; }
+                    })
+                    .filter((d: any): d is Date => d !== null);
 
-                let current = new Date(start);
-                while (current <= end) {
-                    dayTabs.push({
-                        date: new Date(current),
-                        label: format(current, 'd MMM', { locale: th })
-                    });
-                    current.setDate(current.getDate() + 1);
-                }
+                const uniqueDates = sessionDates.reduce<Date[]>((acc, date) => {
+                    if (!acc.some(d => isSameDay(d, date))) acc.push(date);
+                    return acc;
+                }, []);
+                uniqueDates.sort((a, b) => compareAsc(a, b));
 
-                // If only one day or just start/end match, just show that
+                const dayTabs: DayTab[] = uniqueDates.map(date => ({
+                    date,
+                    label: format(date, 'd MMM yyyy', { locale: th }),
+                    sessionCount: (eventData.sessions || []).filter((s: any) => {
+                        try { return isSameDay(parseISO(s.startTime), date); } catch { return false; }
+                    }).length
+                }));
+
                 if (dayTabs.length === 0) {
-                    dayTabs.push({ date: start, label: format(start, 'd MMM', { locale: th }) });
+                    const start = new Date(eventData.startDate);
+                    dayTabs.push({ date: start, label: format(start, 'd MMM yyyy', { locale: th }), sessionCount: 0 });
                 }
 
                 setDays(dayTabs);
-                setActiveDay(dayTabs[0]?.date || start);
+                setActiveDay(dayTabs[0]?.date);
             }
         } catch (err) {
             console.error('Failed to fetch event details:', err);
         } finally {
-            setLoading(false);
+            setLoadingDetail(false);
         }
     };
 
-    // Filter sessions for active day
     const getFilteredSessions = () => {
         if (!activeDay || !sessions) return [];
         return sessions
-            .filter(session => isSameDay(parseISO(session.startTime), activeDay))
+            .filter(session => {
+                try { return isSameDay(parseISO(session.startTime), activeDay); } catch { return false; }
+            })
             .sort((a, b) => compareAsc(parseISO(a.startTime), parseISO(b.startTime)));
     };
 
     const getSpeakerNames = (speakerIdsStr: string | null) => {
         if (!speakerIdsStr) return [];
         try {
-            // Check if it's a JSON array of IDs
             if (speakerIdsStr.startsWith('[')) {
                 const ids = JSON.parse(speakerIdsStr);
                 if (Array.isArray(ids)) {
                     return ids.map(id => speakers.find(s => s.id === id)).filter(Boolean) as ApiSpeaker[];
                 }
             }
-            // If it's just a string name (legacy), return it as a single speaker object-ish
             return [{ id: 0, name: speakerIdsStr, imageUrl: null, title: null, organization: null, bio: null, role: null }];
-        } catch (e) {
+        } catch {
             return [{ id: 0, name: speakerIdsStr, imageUrl: null, title: null, organization: null, bio: null, role: null }];
         }
     };
 
+    // Group sessions by time block for a nicer timeline
+    const groupSessionsByTime = (sessionsList: ApiSession[]) => {
+        const groups: { time: string; endTime: string; sessions: ApiSession[] }[] = [];
+        for (const session of sessionsList) {
+            const timeKey = format(parseISO(session.startTime), 'HH:mm');
+            const endKey = format(parseISO(session.endTime), 'HH:mm');
+            const existing = groups.find(g => g.time === timeKey);
+            if (existing) {
+                existing.sessions.push(session);
+            } else {
+                groups.push({ time: timeKey, endTime: endKey, sessions: [session] });
+            }
+        }
+        return groups;
+    };
+
     const filteredSessions = getFilteredSessions();
+    const groupedSessions = groupSessionsByTime(filteredSessions);
 
     return (
-        <div className="min-h-screen bg-white text-[#6f7e0d] font-sans">
+        <div className="min-h-screen bg-gray-50 font-sans">
             <Navbar />
 
             {/* Header */}
-            <div className="pt-24 pb-12 bg-gradient-to-br from-[#537547] via-[#456339] to-[#537547] border-b border-[#537547]/20 relative overflow-hidden">
-                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-                <div className="container mx-auto px-6 relative z-10">
-                    <div className="flex flex-col md:flex-row justify-between items-end gap-6">
-                        <div>
-                            <span className="inline-block py-1 px-3 rounded-full bg-white/15 border border-white/25 text-white/90 text-sm font-medium mb-3">
-                                <Calendar className="w-4 h-4 inline-block mr-1" />
-                                Conference Schedule
-                            </span>
-                            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">
-                                กำหนดการประชุม
-                            </h1>
-                            <p className="text-white/80 max-w-xl text-lg">
-                                ตารางกิจกรรมและหัวข้อการบรรยายทั้งหมดในการประชุมวิชาการ
-                            </p>
-                        </div>
-
-                        {/* Event Selector (if multiple events) */}
-                        {events.length > 1 && (
-                            <div className="w-full md:w-auto">
-                                <label className="block text-sm text-white/80 mb-2">เลือกงานประชุม</label>
-                                <select
-                                    className="w-full bg-white/15 border border-white/20 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-white/50"
-                                    onChange={(e) => selectEvent(parseInt(e.target.value))}
-                                    value={selectedEvent?.id || ''}
-                                >
-                                    {events.map(e => (
-                                        <option key={e.id} value={e.id} className="bg-white text-[#6f7e0d]">
-                                            {e.eventName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                    </div>
+            <div className="pt-24 pb-10 bg-gradient-to-br from-[#537547] via-[#456339] to-[#3a5530] relative overflow-hidden">
+                <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
+                <div className="container mx-auto max-w-7xl px-4 sm:px-6 relative z-10">
+                    <span className="inline-flex items-center gap-1.5 py-1 px-3 rounded-full bg-white/15 border border-white/25 text-white/90 text-sm font-medium mb-4">
+                        <Layers className="w-4 h-4" />
+                        Conference Agenda
+                    </span>
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 text-white">
+                        กำหนดการประชุม
+                    </h1>
+                    <p className="text-white/70 max-w-xl text-base sm:text-lg">
+                        เลือกงานประชุมเพื่อดูตารางกิจกรรมและหัวข้อการบรรยาย
+                    </p>
                 </div>
             </div>
 
-            <div className="container mx-auto px-6 py-12">
+            <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-8">
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <div className="w-12 h-12 border-4 border-[#537547] border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p className="text-gray-500">กำลังโหลดข้อมูล...</p>
+                    <div className="flex flex-col items-center justify-center py-24">
+                        <div className="w-10 h-10 border-3 border-[#537547] border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p className="text-gray-400 text-sm">กำลังโหลดข้อมูล...</p>
                     </div>
                 ) : error ? (
-                    <div className="text-center py-20">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-6">
-                            <AlertCircle className="w-8 h-8 text-red-500" />
+                    <div className="text-center py-24">
+                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-red-50 mb-5">
+                            <AlertCircle className="w-7 h-7 text-red-400" />
                         </div>
-                        <h3 className="text-xl font-bold mb-2">เกิดข้อผิดพลาด</h3>
-                        <p className="text-gray-500 mb-6">{error}</p>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">เกิดข้อผิดพลาด</h3>
+                        <p className="text-gray-500 mb-5 text-sm">{error}</p>
                         <button
                             onClick={fetchInitialData}
-                            className="px-6 py-2 bg-[#537547] hover:bg-[#456339] text-white rounded-lg transition-colors"
+                            className="px-5 py-2 bg-[#537547] hover:bg-[#456339] text-white rounded-lg transition-colors text-sm"
                         >
                             ลองใหม่อีกครั้ง
                         </button>
                     </div>
-                ) : !selectedEvent ? (
-                    <div className="text-center py-20">
-                        <p className="text-gray-500">ไม่พบงานประชุมที่เผยแพร่ในขณะนี้</p>
-                    </div>
                 ) : (
-                    <div className="grid lg:grid-cols-4 gap-8">
-                        {/* Sidebar / Filters (Optional - simpler for now just days) */}
-                        <div className="lg:col-span-1">
-                            <div className="sticky top-24 space-y-6">
-                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
-                                    <h3 className="font-bold mb-4 flex items-center">
-                                        <Calendar className="w-5 h-5 mr-2 text-[#537547]" />
-                                        วันที่จัดงาน
-                                    </h3>
-                                    <div className="space-y-2">
-                                        {days.map((day) => (
+                    <div className="flex flex-col lg:flex-row gap-6">
+                        {/* ========== LEFT SIDEBAR: Event Tabs ========== */}
+                        <div className="lg:w-80 flex-shrink-0">
+                            <div className="sticky top-24 space-y-3">
+                                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 mb-2">
+                                    งานประชุมทั้งหมด ({events.length})
+                                </h3>
+                                <div className="space-y-2">
+                                    {events.map((event) => {
+                                        const isSelected = selectedEventId === event.id;
+                                        return (
                                             <button
-                                                key={day.date.toISOString()}
-                                                onClick={() => setActiveDay(day.date)}
-                                                className={`w-full text-left px-4 py-3 rounded-lg transition-all flex justify-between items-center ${activeDay && isSameDay(activeDay, day.date)
-                                                    ? 'bg-[#537547] text-white shadow-lg shadow-[#537547]/20'
-                                                    : 'hover:bg-gray-100 text-gray-500 hover:text-[#6f7e0d]'
+                                                key={event.id}
+                                                onClick={() => selectEvent(event.id)}
+                                                className={`w-full text-left rounded-xl p-4 transition-all duration-200 border group ${isSelected
+                                                    ? 'bg-white border-[#537547]/30 shadow-md shadow-[#537547]/10 ring-1 ring-[#537547]/20'
+                                                    : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
                                                     }`}
                                             >
-                                                <span>{day.label}</span>
-                                                {activeDay && isSameDay(activeDay, day.date) && (
-                                                    <ChevronRight className="w-4 h-4" />
-                                                )}
+                                                <div className="flex items-start gap-3">
+                                                    {/* Event image thumbnail */}
+                                                    <div className={`w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden border ${isSelected ? 'border-[#537547]/30' : 'border-gray-200'}`}>
+                                                        {event.imageUrl ? (
+                                                            <img src={event.imageUrl} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-[#537547]/10' : 'bg-gray-100'}`}>
+                                                                <Calendar className={`w-5 h-5 ${isSelected ? 'text-[#537547]' : 'text-gray-400'}`} />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className={`text-sm font-semibold truncate mb-1 ${isSelected ? 'text-[#537547]' : 'text-gray-800'}`}>
+                                                            {event.name || event.title || 'Untitled Event'}
+                                                        </h4>
+                                                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                                                            <Calendar className="w-3 h-3" />
+                                                            <span>{event.startDate ? format(new Date(event.startDate), 'd MMM yyyy', { locale: th }) : 'TBA'}</span>
+                                                        </div>
+                                                        {event.venue && (
+                                                            <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
+                                                                <MapPin className="w-3 h-3" />
+                                                                <span className="truncate">{event.venue}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {isSelected && (
+                                                        <ChevronRight className="w-4 h-4 text-[#537547] flex-shrink-0 mt-1" />
+                                                    )}
+                                                </div>
                                             </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
-                                    <h3 className="font-bold mb-4 flex items-center">
-                                        <MapPin className="w-5 h-5 mr-2 text-blue-400" />
-                                        สถานที่
-                                    </h3>
-                                    <p className="text-gray-600 text-sm leading-relaxed">
-                                        {selectedEvent.location || 'Online / Virtual'}
-                                    </p>
-                                    {selectedEvent.mapUrl && (
-                                        <a
-                                            href={selectedEvent.mapUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-block mt-3 text-sm text-[#537547] hover:underline"
-                                        >
-                                            ดูแผนที่ Google Maps
-                                        </a>
-                                    )}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Schedule List */}
-                        <div className="lg:col-span-3">
-                            <h2 className="text-2xl font-bold mb-6 flex items-center">
-                                <Clock className="w-6 h-6 mr-3 text-[#537547]" />
-                                {activeDay && format(activeDay, 'EEEE d MMMM yyyy', { locale: th })}
-                            </h2>
-
-                            <div className="space-y-4">
-                                {filteredSessions.length > 0 ? (
-                                    filteredSessions.map((session) => {
-                                        const sessionSpeakers = getSpeakerNames(session.speakers);
-                                        return (
-                                            <div
-                                                key={session.id}
-                                                className="group bg-gray-50 border border-gray-200 rounded-xl overflow-hidden hover:border-[#537547]/30 transition-all hover:bg-gray-100"
-                                            >
-                                                <div className="p-6 md:p-8 flex flex-col md:flex-row gap-6">
-                                                    {/* Time & Room */}
-                                                    <div className="md:w-48 flex-shrink-0 flex flex-col justify-start">
-                                                        <div className="text-2xl font-bold text-[#537547] mb-1">
-                                                            {format(parseISO(session.startTime), 'HH:mm')}
-                                                        </div>
-                                                        <div className="text-sm text-gray-500 mb-2">
-                                                            ถึง {format(parseISO(session.endTime), 'HH:mm')}
-                                                        </div>
-                                                        {session.room && (
-                                                            <div className="inline-flex items-center text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 w-fit mt-1">
-                                                                <MapPin className="w-3 h-3 mr-1" />
-                                                                {session.room}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Content */}
-                                                    <div className="flex-grow">
-                                                        {/* Code Badge */}
-                                                        <div className="flex items-center gap-2 mb-3">
-                                                            <span className="text-xs font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                                                                {session.sessionCode}
-                                                            </span>
-                                                        </div>
-
-                                                        <h3 className="text-xl font-bold text-[#6f7e0d] mb-2 group-hover:text-[#537547] transition-colors">
-                                                            {session.sessionName}
-                                                        </h3>
-
-                                                        {session.description && (
-                                                            <p className="text-gray-500 text-sm mb-6 leading-relaxed">
-                                                                {session.description}
-                                                            </p>
-                                                        )}
-
-                                                        {/* Speakers */}
-                                                        {sessionSpeakers.length > 0 && (
-                                                            <div className="border-t border-gray-200 pt-4 mt-auto">
-                                                                <div className="flex flex-wrap gap-4">
-                                                                    {sessionSpeakers.map((speaker, idx) => (
-                                                                        <div key={idx} className="flex items-center gap-3">
-                                                                            {speaker.imageUrl ? (
-                                                                                <img
-                                                                                    src={speaker.imageUrl}
-                                                                                    alt={speaker.name}
-                                                                                    className="w-10 h-10 rounded-full object-cover border border-white/20"
-                                                                                />
-                                                                            ) : (
-                                                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-300 to-gray-200 flex items-center justify-center border border-gray-300">
-                                                                                    <User className="w-5 h-5 text-gray-500" />
-                                                                                </div>
-                                                                            )}
-                                                                            <div>
-                                                                                <div className="font-medium text-sm text-[#6f7e0d]">{speaker.name}</div>
-                                                                                {speaker.title && (
-                                                                                    <div className="text-xs text-gray-500">{speaker.title}</div>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
+                        {/* ========== RIGHT CONTENT: Schedule ========== */}
+                        <div className="flex-1 min-w-0">
+                            {loadingDetail ? (
+                                <div className="flex flex-col items-center justify-center py-20">
+                                    <div className="w-8 h-8 border-3 border-[#537547] border-t-transparent rounded-full animate-spin mb-3"></div>
+                                    <p className="text-gray-400 text-sm">กำลังโหลดกำหนดการ...</p>
+                                </div>
+                            ) : !selectedEvent ? (
+                                <div className="text-center py-20">
+                                    <Layers className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                    <p className="text-gray-400">เลือกงานประชุมจากด้านซ้ายเพื่อดูกำหนดการ</p>
+                                </div>
+                            ) : (
+                                <div>
+                                    {/* Event Title Bar */}
+                                    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div>
+                                                <h2 className="text-xl font-bold text-gray-900">
+                                                    {selectedEvent.name || selectedEvent.title}
+                                                </h2>
+                                                <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-500">
+                                                    {selectedEvent.startDate && (
+                                                        <span className="flex items-center gap-1.5">
+                                                            <Calendar className="w-4 h-4 text-[#537547]" />
+                                                            {format(new Date(selectedEvent.startDate), 'd MMM yyyy', { locale: th })}
+                                                            {selectedEvent.endDate && ` - ${format(new Date(selectedEvent.endDate), 'd MMM yyyy', { locale: th })}`}
+                                                        </span>
+                                                    )}
+                                                    {selectedEvent.venue && (
+                                                        <span className="flex items-center gap-1.5">
+                                                            <MapPin className="w-4 h-4 text-[#537547]" />
+                                                            {selectedEvent.venue}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="text-center py-16 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-                                        <Clock className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                                        <p className="text-gray-500">ไม่มีรายการในช่วงเวลานี้</p>
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <span className="px-3 py-1 rounded-full bg-[#537547]/10 text-[#537547] font-medium">
+                                                    {sessions.length} Sessions
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
-                            </div>
+
+                                    {/* Day Tabs */}
+                                    {days.length > 1 && (
+                                        <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+                                            {days.map((day) => {
+                                                const isActive = activeDay && isSameDay(activeDay, day.date);
+                                                return (
+                                                    <button
+                                                        key={day.date.toISOString()}
+                                                        onClick={() => setActiveDay(day.date)}
+                                                        className={`flex-shrink-0 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive
+                                                            ? 'bg-[#537547] text-white shadow-md shadow-[#537547]/20'
+                                                            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                                                            }`}
+                                                    >
+                                                        <span>{day.label}</span>
+                                                        <span className={`ml-2 text-xs ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
+                                                            ({day.sessionCount})
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* Active Day Header */}
+                                    {activeDay && (
+                                        <div className="flex items-center gap-2 mb-5">
+                                            <Clock className="w-5 h-5 text-[#537547]" />
+                                            <h3 className="text-lg font-semibold text-gray-800">
+                                                {format(activeDay, 'EEEE d MMMM yyyy', { locale: th })}
+                                            </h3>
+                                        </div>
+                                    )}
+
+                                    {/* Timeline */}
+                                    {groupedSessions.length > 0 ? (
+                                        <div className="relative">
+                                            {/* Timeline line */}
+                                            <div className="absolute left-[39px] top-2 bottom-2 w-px bg-gradient-to-b from-[#537547]/30 via-[#537547]/15 to-transparent hidden sm:block"></div>
+
+                                            <div className="space-y-4">
+                                                {groupedSessions.map((group, gIdx) => (
+                                                    <div key={gIdx} className="flex gap-4 sm:gap-6">
+                                                        {/* Time Column */}
+                                                        <div className="flex-shrink-0 w-[80px] pt-5 hidden sm:block">
+                                                            <div className="relative">
+                                                                {/* Timeline dot */}
+                                                                <div className="absolute -right-[25px] top-1 w-3 h-3 rounded-full bg-[#537547] border-2 border-white shadow-sm z-10"></div>
+                                                                <div className="text-right pr-4">
+                                                                    <div className="text-lg font-bold text-[#537547]">{group.time}</div>
+                                                                    <div className="text-xs text-gray-400">ถึง {group.endTime}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Session Cards */}
+                                                        <div className="flex-1 min-w-0 space-y-3">
+                                                            {group.sessions.map((session) => {
+                                                                const sessionSpeakers = getSpeakerNames(session.speakers);
+                                                                return (
+                                                                    <div
+                                                                        key={session.id}
+                                                                        className="bg-white border border-gray-200 rounded-xl p-5 hover:border-[#537547]/25 hover:shadow-sm transition-all group"
+                                                                    >
+                                                                        {/* Mobile time */}
+                                                                        <div className="sm:hidden flex items-center gap-2 text-sm text-[#537547] font-semibold mb-3">
+                                                                            <Clock className="w-4 h-4" />
+                                                                            {group.time} - {group.endTime}
+                                                                        </div>
+
+                                                                        {/* Code + Room badges */}
+                                                                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                                            <span className="text-xs font-mono px-2 py-0.5 rounded bg-[#537547]/10 text-[#537547] border border-[#537547]/15">
+                                                                                {session.sessionCode}
+                                                                            </span>
+                                                                            {session.room && (
+                                                                                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-500">
+                                                                                    <MapPin className="w-3 h-3" />
+                                                                                    {session.room}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* Title */}
+                                                                        <h4 className="text-base font-semibold text-gray-900 group-hover:text-[#537547] transition-colors mb-1">
+                                                                            {session.sessionName}
+                                                                        </h4>
+
+                                                                        {/* Description */}
+                                                                        {session.description && (
+                                                                            <p className="text-sm text-gray-500 leading-relaxed mb-3 line-clamp-2">
+                                                                                {session.description}
+                                                                            </p>
+                                                                        )}
+
+                                                                        {/* Speakers */}
+                                                                        {sessionSpeakers.length > 0 && (
+                                                                            <div className="flex flex-wrap gap-3 pt-3 border-t border-gray-100">
+                                                                                {sessionSpeakers.map((speaker, idx) => (
+                                                                                    <div key={idx} className="flex items-center gap-2">
+                                                                                        {speaker.imageUrl ? (
+                                                                                            <img
+                                                                                                src={speaker.imageUrl}
+                                                                                                alt={speaker.name}
+                                                                                                className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                                                                                            />
+                                                                                        ) : (
+                                                                                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                                                                                <User className="w-4 h-4 text-gray-400" />
+                                                                                            </div>
+                                                                                        )}
+                                                                                        <div>
+                                                                                            <div className="text-sm font-medium text-gray-700">{speaker.name}</div>
+                                                                                            {speaker.title && (
+                                                                                                <div className="text-xs text-gray-400">{speaker.title}</div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                                            <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                                            <p className="text-gray-400 text-sm">ยังไม่มีรายการในวันนี้</p>
+                                            <p className="text-gray-300 text-xs mt-1">Session จะแสดงเมื่อมีการเพิ่มข้อมูลจากผู้ดูแลระบบ</p>
+                                        </div>
+                                    )}
+
+                                    {/* Event Documents */}
+                                    {selectedEvent.documents && selectedEvent.documents.length > 0 && (
+                                        <div className="mt-8 bg-white border border-gray-200 rounded-xl p-5">
+                                            <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                                <FileText className="w-4 h-4 text-[#537547]" />
+                                                เอกสารประกอบ
+                                            </h3>
+                                            <div className="grid gap-2 sm:grid-cols-2">
+                                                {selectedEvent.documents.map((doc: any, idx: number) => (
+                                                    <a
+                                                        key={idx}
+                                                        href={doc.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50/50 hover:bg-[#537547]/5 hover:border-[#537547]/20 transition-all group"
+                                                    >
+                                                        <div className="w-9 h-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-400 group-hover:text-[#537547] group-hover:border-[#537547]/30 shadow-sm transition-colors flex-shrink-0">
+                                                            <FileText className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="text-sm font-medium text-gray-600 group-hover:text-gray-800 truncate">
+                                                            {doc.name}
+                                                        </span>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

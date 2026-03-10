@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import Image from 'next/image';
 import { User, LogOut, ChevronDown, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -48,8 +49,8 @@ export function Navbar() {
 
             <div className="container mx-auto px-6 h-20 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg">
-                        ภ
+                    <div className="w-10 h-10 flex items-center justify-center">
+                        <Image src="/logo.png" alt="Logo" width={40} height={40} className="w-10 h-auto object-contain" />
                     </div>
                     <div>
                         <div className="text-lg font-bold text-white">สภาเภสัชกรรม</div>

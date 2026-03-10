@@ -33,8 +33,8 @@ interface RegisterResponse {
 
 // Auth API
 export const authApi = {
-    login: (email: string, password: string) =>
-        api.post<LoginResponse>('/auth/login', { email, password }),
+    login: (email: string | undefined, password: string, pharmacyLicenseId?: string) =>
+        api.post<LoginResponse>('/auth/login', { email, password, pharmacyLicenseId }),
 
     register: (formData: FormData) =>
         apiClient<RegisterResponse>('/auth/register', {

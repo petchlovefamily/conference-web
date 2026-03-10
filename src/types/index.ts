@@ -24,13 +24,15 @@ export interface Event {
     sessions?: Session[];
     // UI compatibility fields
     coverImage?: string;
-    videoUrl?: string;
+    videoUrl?: string; // Add videoUrl for MP4/WebM uploads
+    maxCapacity?: number;
     imageUrl?: string;
     venueImage?: string;
     image?: string;
     speakers?: Speaker[];
     images?: EventImage[];
     attachments?: EventAttachment[];
+    documents?: { name: string; url: string }[];
     // Legacy fields for existing pages
     rounds?: Round[];
     price?: number;
@@ -38,6 +40,7 @@ export interface Event {
     schedule?: ScheduleItem[];
     createdAt?: string;
     location?: string;
+    mapUrl?: string; // Add mapUrl for iframe embedding
     date?: string;
     time?: string;
     registeredCount?: number;
@@ -58,6 +61,7 @@ export interface TicketType {
     available?: number;
     maxPerOrder?: number;
     benefits?: string[];
+    allowedRoles?: string[];
 }
 
 export interface Round {

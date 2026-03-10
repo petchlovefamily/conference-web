@@ -24,7 +24,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserRegistrations, UserRegistration } from '@/lib/services';
 import { QRCodeTicket, QRCodeTicketCompact } from '@/components/ticket/QRCodeTicket';
-import { cn } from '@/lib/utils';
+import { cn, getUserRoleLabel, getUserRoleBadgeColor } from '@/lib/utils';
 
 type MenuTab = 'profile' | 'tickets' | 'payment';
 type PaymentStatus = 'all' | 'pending' | 'completed' | 'failed' | 'cancelled';
@@ -141,7 +141,7 @@ export default function ProfilePage() {
         return null;
     }
 
-    const isPharmacist = user.role === 'pharmacist' || user.role === 'member';
+    const isPharmacist = ['thpro', 'interpro', 'thstd', 'interstd'].includes(user.role);
 
     const menuItems = [
         { key: 'profile' as MenuTab, label: 'Profile', icon: User },
@@ -191,20 +191,12 @@ export default function ProfilePage() {
                                     </div>
                                     <h2 className="text-lg font-bold text-gray-900 mt-3">{user.name}</h2>
                                     <div className="flex items-center justify-center gap-2 mt-2">
-                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border ${user.role === 'admin'
-                                            ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                            : user.role === 'staff'
-                                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                                : isPharmacist
-                                                    ? 'bg-[#537547]/10 text-[#537547] border-[#537547]/30'
-                                                    : 'bg-gray-100 text-gray-700 border-gray-200'
-                                            }`}>
-                                            {user.role === 'admin' && <Shield className="w-3 h-3" />}
-                                            {user.role === 'staff' && <User className="w-3 h-3" />}
+                                        <span className={cn(
+                                            'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border',
+                                            getUserRoleBadgeColor(user.role), 'border-current/30'
+                                        )}>
                                             {isPharmacist && <Stethoscope className="w-3 h-3" />}
-                                            {user.role === 'admin' ? 'ผู้ดูแลระบบ' :
-                                                user.role === 'staff' ? 'Staff' :
-                                                    isPharmacist ? 'เภสัชกร' : 'ผู้ใช้งาน'}
+                                            {getUserRoleLabel(user.role)}
                                         </span>
                                     </div>
                                 </div>
@@ -339,9 +331,22 @@ export default function ProfilePage() {
                                                 </div>
                                                 <div>
                                                     <div className="text-sm text-gray-500">บทบาท</div>
-                                                    <div className="font-medium text-gray-900 capitalize">{user.role}</div>
+                                                    <div className="font-medium text-gray-900">{getUserRoleLabel(user.role)}</div>
                                                 </div>
                                             </div>
+
+                                            {/* Pharmacy License */}
+                                            {isPharmacist && (
+                                                <div className="flex items-center gap-4 py-4 border-b border-gray-100">
+                                                    <div className="w-10 h-10 rounded-xl bg-[#537547]/10 flex items-center justify-center">
+                                                        <Stethoscope className="w-5 h-5 text-[#537547]" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm text-gray-500">เลขใบอนุญาต</div>
+                                                        <div className="font-medium text-gray-900">{user.pharmacyLicenseId || '-'}</div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Quick Links */}

@@ -43,10 +43,13 @@ function mapApiEventToEvent(apiEvent: any): Event {
         name: apiEvent.eventName || apiEvent.name || '',
         title: apiEvent.eventName || apiEvent.name || '',
         description: apiEvent.description || '',
+        mapUrl: apiEvent.mapUrl || '',
         eventType: apiEvent.eventType || 'single',
         status: apiEvent.status || 'published',
         venue: apiEvent.location || '',
         capacity: apiEvent.maxCapacity || 0,
+        maxCapacity: apiEvent.maxCapacity || 0,
+        registeredCount: apiEvent.registeredCount || 0,
         cpeCredits: apiEvent.cpeCredits || '0',
         startDate: apiEvent.startDate || '',
         endDate: apiEvent.endDate || '',
@@ -62,15 +65,33 @@ function mapApiEventToEvent(apiEvent: any): Event {
         category: apiEvent.category || '',
         createdAt: apiEvent.createdAt || '',
         // Pass through nested data if present
-        ticketTypes: (apiEvent.ticketTypes || []).map((t: any) => ({
-            ...t,
-            ticketCategory: t.ticketCategory || t.category,
-            category: t.priority || t.category,
-        })),
+        ticketTypes: (apiEvent.ticketTypes || []).map((t: any) => {
+            // Parse allowedRoles - could be JSON string, array, or CSV
+            let allowedRoles: string[] = [];
+            if (t.allowedRoles) {
+                if (Array.isArray(t.allowedRoles)) {
+                    allowedRoles = t.allowedRoles;
+                } else if (typeof t.allowedRoles === 'string') {
+                    try {
+                        const parsed = JSON.parse(t.allowedRoles);
+                        allowedRoles = Array.isArray(parsed) ? parsed : [];
+                    } catch {
+                        allowedRoles = t.allowedRoles.split(',').map((r: string) => r.trim()).filter(Boolean);
+                    }
+                }
+            }
+            return {
+                ...t,
+                ticketCategory: t.ticketCategory || t.category,
+                category: t.priority || t.category,
+                allowedRoles,
+            };
+        }),
         sessions: apiEvent.sessions || [],
         speakers: apiEvent.speakers || [],
         images: apiEvent.images || [],
         attachments: apiEvent.attachments || [],
+        documents: apiEvent.documents || [],
         rounds: apiEvent.rounds || [],
         schedule: apiEvent.schedule || [],
     };

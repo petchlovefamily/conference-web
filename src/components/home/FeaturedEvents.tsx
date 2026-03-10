@@ -42,6 +42,7 @@ export function FeaturedEvents({ events }: FeaturedEventsProps) {
                                     <div className="aspect-video relative overflow-hidden">
                                         <img
                                             src={
+                                                event.imageUrl ||
                                                 event.coverImage ||
                                                 event.image ||
                                                 `https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?q=80&w=800&auto=format&fit=crop`
@@ -49,9 +50,11 @@ export function FeaturedEvents({ events }: FeaturedEventsProps) {
                                             alt={event.name || event.title}
                                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                         />
-                                        <div className="absolute top-3 right-3 bg-[#537547] text-white px-3 py-1 rounded-full text-sm font-medium">
-                                            {event.cpeCredits} CPE
-                                        </div>
+                                        {event.cpeCredits && Number(event.cpeCredits) > 0 && (
+                                            <div className="absolute top-3 right-3 bg-[#537547] text-white px-3 py-1 rounded-full text-sm font-medium shadow-md">
+                                                {event.cpeCredits} CPE
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="p-5">
                                         <h3 className="text-lg font-bold mb-2 text-[#6f7e0d] group-hover:text-[#537547] transition-colors line-clamp-2">

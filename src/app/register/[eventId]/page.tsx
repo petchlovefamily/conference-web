@@ -17,11 +17,23 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterPage() {
     const params = useParams();
     const router = useRouter();
     const eventId = params.eventId as string;
+
+    // User role for ticket filtering
+    const { user: authUser } = useAuth();
+    const userRole = authUser?.role || 'public';
+
+    // Helper: check if a ticket is visible to the current user based on allowedRoles
+    const isTicketAllowedForUser = (ticket: { allowedRoles?: string[] }) => {
+        if (!ticket.allowedRoles || ticket.allowedRoles.length === 0) return true;
+        const role = userRole === 'public' ? 'general' : userRole;
+        return ticket.allowedRoles.includes(role);
+    };
 
     const [formData, setFormData] = useState({
         nameTh: '',
@@ -48,7 +60,7 @@ export default function RegisterPage() {
     useEffect(() => {
         if (event?.ticketTypes && event.ticketTypes.length > 0 && !selectedTicketType) {
             // Auto-select first primary ticket, not add-on
-            const firstPrimaryTicket = event.ticketTypes.find(t => t.ticketCategory !== 'addon');
+            const firstPrimaryTicket = event.ticketTypes.find(t => t.ticketCategory !== 'addon' && isTicketAllowedForUser(t));
             if (firstPrimaryTicket) {
                 setSelectedTicketType(firstPrimaryTicket.id);
             }
@@ -205,7 +217,7 @@ export default function RegisterPage() {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3">
-                                        {event.ticketTypes?.filter(t => t.ticketCategory !== 'addon').map((ticket) => {
+                                        {event.ticketTypes?.filter(t => t.ticketCategory !== 'addon' && isTicketAllowedForUser(t)).map((ticket) => {
                                             const available = (ticket.quota ?? 0) - (ticket.soldCount ?? 0);
                                             const isSoldOut = available <= 0;
                                             return (
@@ -234,14 +246,14 @@ export default function RegisterPage() {
                                                 </div>
                                             );
                                         })}
-                                        {event.ticketTypes?.filter(t => t.ticketCategory !== 'addon').length === 0 && (
+                                        {event.ticketTypes?.filter(t => t.ticketCategory !== 'addon' && isTicketAllowedForUser(t)).length === 0 && (
                                             <div className="text-center text-gray-400 py-4">ไม่มีบัตรหลักในขณะนี้</div>
                                         )}
                                     </CardContent>
                                 </Card>
 
                                 {/* Add-on Ticket Selection */}
-                                {event.ticketTypes?.some(t => t.ticketCategory === 'addon') && (
+                                {event.ticketTypes?.some(t => t.ticketCategory === 'addon' && isTicketAllowedForUser(t)) && (
                                     <Card className={cn("bg-white/5 border-white/10", !selectedTicketType && "opacity-50")}>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
@@ -252,7 +264,7 @@ export default function RegisterPage() {
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
-                                            {event.ticketTypes?.filter(t => t.ticketCategory === 'addon').map((ticket) => {
+                                            {event.ticketTypes?.filter(t => t.ticketCategory === 'addon' && isTicketAllowedForUser(t)).map((ticket) => {
                                                 const available = (ticket.quota ?? 0) - (ticket.soldCount ?? 0);
                                                 const isSoldOut = available <= 0;
                                                 const isDisabled = !selectedTicketType || isSoldOut;

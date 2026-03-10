@@ -32,6 +32,7 @@ export default async function Home() {
         membersCount={stats.membersCount}
         eventsCount={stats.eventsCount}
         featuredEvent={upcomingEvents[0]}
+        events={upcomingEvents}
       />
 
       <TrustBadges />

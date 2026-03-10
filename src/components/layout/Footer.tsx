@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
 
 export function Footer() {
@@ -7,9 +8,12 @@ export function Footer() {
             <div className="container mx-auto px-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
                     <div className="space-y-4">
-                        <h3 className="text-2xl font-bold font-mono text-white">Event<span className="text-white/80">Flow</span></h3>
+                        <div className="flex items-center gap-3">
+                            <Image src="/logo.png" alt="Logo" width={48} height={48} className="w-12 h-auto object-contain" />
+                            <h3 className="text-2xl font-bold text-white">สภาเภสัชกรรม</h3>
+                        </div>
                         <p className="text-white/70 text-sm leading-relaxed">
-                            Discover a world of knowledge and inspiration. Join our events to connect with industry leaders.
+                            สภาเภสัชกรรม (The Pharmacy Council) มุ่งมั่นที่จะพัฒนาวิชาชีพเภสัชกรรมเพื่อสุขภาวะของประชาชน
                         </p>
                     </div>
 
@@ -45,7 +49,7 @@ export function Footer() {
                 </div>
 
                 <div className="pt-8 border-t border-white/20 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-sm text-white/60">© 2025 EventFlow. All rights reserved.</p>
+                    <p className="text-sm text-white/60">© {new Date().getFullYear()} สภาเภสัชกรรม. All rights reserved.</p>
                     <div className="flex gap-4">
                         <Facebook className="w-5 h-5 text-white/60 hover:text-white cursor-pointer" />
                         <Twitter className="w-5 h-5 text-white/60 hover:text-white cursor-pointer" />
