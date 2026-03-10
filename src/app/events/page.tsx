@@ -231,7 +231,7 @@ export default function EventsPage() {
                                                 </div>
                                                 <div className="text-left">
                                                     <div className="text-xs text-gray-400">เวลา</div>
-                                                    <div>{event.rounds?.[0]?.time || (event.startDate ? new Date(event.startDate).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA')}</div>
+                                                    <div>{event.startDate ? new Date(event.startDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Bangkok' }) : 'TBA'}</div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -240,7 +240,7 @@ export default function EventsPage() {
                                                 </div>
                                                 <div className="text-left">
                                                     <div className="text-xs text-gray-400">วันที่</div>
-                                                    <div>{event.rounds?.[0]?.date ? new Date(event.rounds[0].date).toLocaleDateString('th-TH') : (event.startDate ? new Date(event.startDate).toLocaleDateString('th-TH') : 'TBA')}</div>
+                                                    <div>{event.rounds?.[0]?.date ? new Date(event.rounds[0].date).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' }) : (event.startDate ? new Date(event.startDate).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' }) : 'TBA')}</div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">

@@ -51,7 +51,7 @@ export const DATE_FORMAT = {
     DISPLAY: 'dd MMM yyyy',
     DISPLAY_TH: 'dd MMMM yyyy',
     API: 'yyyy-MM-dd',
-    DATETIME: 'yyyy-MM-dd HH:mm:ss',
+    DATETIME: 'yyyy-MM-dd h:mm:ss aa',
 } as const;
 
 // Validation

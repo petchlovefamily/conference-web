@@ -64,6 +64,7 @@ function mapApiEventToEvent(apiEvent: any): Event {
         price: apiEvent.price ?? 0,
         category: apiEvent.category || '',
         createdAt: apiEvent.createdAt || '',
+        firstSessionStart: apiEvent.firstSessionStart || undefined,
         // Pass through nested data if present
         ticketTypes: (apiEvent.ticketTypes || []).map((t: any) => {
             // Parse allowedRoles - could be JSON string, array, or CSV
@@ -85,6 +86,8 @@ function mapApiEventToEvent(apiEvent: any): Event {
                 ticketCategory: t.ticketCategory || t.category,
                 category: t.priority || t.category,
                 allowedRoles,
+                salesStart: t.salesStart || t.saleStartDate || undefined,
+                salesEnd: t.salesEnd || t.saleEndDate || undefined,
             };
         }),
         sessions: apiEvent.sessions || [],

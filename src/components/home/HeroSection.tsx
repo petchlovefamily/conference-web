@@ -29,17 +29,12 @@ export function HeroSection({ yearsCount, membersCount, eventsCount, featuredEve
     // Carousel state
     const carouselEvents = events.length > 0 ? events : featuredEvent ? [featuredEvent] : [];
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [isTransitioning, setIsTransitioning] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
 
     const goToSlide = useCallback((index: number) => {
-        if (isTransitioning || index === currentIndex) return;
-        setIsTransitioning(true);
-        setTimeout(() => {
-            setCurrentIndex(index);
-            setTimeout(() => setIsTransitioning(false), 50);
-        }, 300);
-    }, [currentIndex, isTransitioning]);
+        if (index === currentIndex) return;
+        setCurrentIndex(index);
+    }, [currentIndex]);
 
     const goNext = useCallback(() => {
         if (carouselEvents.length <= 1) return;
@@ -76,7 +71,7 @@ export function HeroSection({ yearsCount, membersCount, eventsCount, featuredEve
     // Helper for formatting date
     const formatDate = (dateString?: string) => {
         if (!dateString) return '';
-        return new Date(dateString).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+        return new Date(dateString).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Bangkok' });
     };
 
     const currentEvent = carouselEvents[currentIndex];
@@ -159,7 +154,7 @@ export function HeroSection({ yearsCount, membersCount, eventsCount, featuredEve
                                 {carouselEvents.map((event, index) => (
                                     <div
                                         key={event.id}
-                                        className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${index === currentIndex && !isTransitioning ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                                        className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                                     >
                                         <Image
                                             src={event.imageUrl || event.coverImage || event.image || 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop'}
@@ -195,7 +190,7 @@ export function HeroSection({ yearsCount, membersCount, eventsCount, featuredEve
                                 )}
 
                                 {/* Event Info Overlay */}
-                                <div className={`absolute bottom-0 left-0 right-0 p-6 z-20 transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+                                <div className="absolute bottom-0 left-0 right-0 p-6 z-20">
                                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#537547] rounded-full text-sm font-medium text-white mb-3">
                                         <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                                         เปิดรับสมัครแล้ว
@@ -259,12 +254,12 @@ export function HeroSection({ yearsCount, membersCount, eventsCount, featuredEve
             </div>
 
             {/* Carousel progress bar animation */}
-            <style jsx>{`
+            <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes carousel-progress {
                     from { width: 0%; }
                     to { width: 100%; }
                 }
-            `}</style>
+            ` }} />
         </section>
     );
 }

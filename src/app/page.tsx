@@ -13,7 +13,7 @@ export const revalidate = 60;
 
 export default async function Home() {
   const events = await getEvents().catch(() => []);
-  const upcomingEvents = events.slice(0, 3);
+  const upcomingEvents = events;
 
   // Stats Data
   const stats = {

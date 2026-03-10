@@ -156,6 +156,28 @@ export default function EventDetailPage() {
         return Math.max(0, price - promoDiscount.value);
     };
 
+    // Helper: check if a ticket is within its sale period
+    const isTicketOnSale = (ticket: { salesStart?: string; salesEnd?: string }) => {
+        const now = new Date();
+        const saleStart = ticket.salesStart ? new Date(ticket.salesStart) : null;
+        const saleEnd = ticket.salesEnd ? new Date(ticket.salesEnd) : null;
+        if (saleStart && now < saleStart) return false;
+        if (saleEnd && now > saleEnd) return false;
+        return true;
+    };
+
+    // Find the nearest upcoming sale start date across all primary tickets
+    const getNextSaleStartDate = (): Date | null => {
+        if (!event?.ticketTypes) return null;
+        const now = new Date();
+        const futureDates = event.ticketTypes
+            .filter(t => t.ticketCategory !== 'addon' && isTicketAllowedForUser(t) && t.salesStart)
+            .map(t => new Date(t.salesStart!))
+            .filter(d => d > now)
+            .sort((a, b) => a.getTime() - b.getTime());
+        return futureDates[0] || null;
+    };
+
     // Auto-detect the best ticket for current user (like Eventpass)
     // Priority: Early Bird (if available and within sale period) > Member (if logged in) > Public
     const getAutoSelectedTicket = () => {
@@ -165,30 +187,25 @@ export default function EventDetailPage() {
         const primaryTickets = event.ticketTypes.filter(t => t.ticketCategory !== 'addon' && isTicketAllowedForUser(t));
         if (primaryTickets.length === 0) return null;
 
-        const now = new Date();
-        const eventStart = event.startDate ? new Date(event.startDate) : null;
-        const sevenDaysBeforeEvent = eventStart ? new Date(eventStart.getTime() - 7 * 24 * 60 * 60 * 1000) : null;
+        // Only consider tickets that are currently within their sale period
+        const onSaleTickets = primaryTickets.filter(t => isTicketOnSale(t));
+        if (onSaleTickets.length === 0) return null;
 
-        // Find tickets by category from primary tickets only
-        const earlyBirdTicket = primaryTickets.find(t =>
+        // Find tickets by category from on-sale tickets only
+        const earlyBirdTicket = onSaleTickets.find(t =>
             t.name.toLowerCase().includes('early') || t.name.toLowerCase().includes('bird')
         );
-        const memberTicket = primaryTickets.find(t =>
+        const memberTicket = onSaleTickets.find(t =>
             t.name.toLowerCase().includes('member') || t.name.toLowerCase().includes('สมาชิก')
         );
-        const publicTicket = primaryTickets.find(t =>
+        const publicTicket = onSaleTickets.find(t =>
             t.name.toLowerCase().includes('public') || t.name.toLowerCase().includes('ทั่วไป') || t.name.toLowerCase().includes('general')
         );
 
-        // Check Early Bird availability (before 7 days of event OR within sale period)
+        // Check Early Bird availability
         if (earlyBirdTicket) {
-            const salesStart = earlyBirdTicket.salesStart ? new Date(earlyBirdTicket.salesStart) : null;
-            const salesEnd = earlyBirdTicket.salesEnd ? new Date(earlyBirdTicket.salesEnd) : sevenDaysBeforeEvent;
-
-            const isWithinSalePeriod = (!salesStart || now >= salesStart) && (!salesEnd || now <= salesEnd);
             const hasAvailability = earlyBirdTicket.available === undefined || earlyBirdTicket.available > 0;
-
-            if (isWithinSalePeriod && hasAvailability) {
+            if (hasAvailability) {
                 return earlyBirdTicket;
             }
         }
@@ -206,8 +223,8 @@ export default function EventDetailPage() {
             return publicTicket;
         }
 
-        // Fallback to first available primary ticket
-        return primaryTickets[0];
+        // Fallback to first available on-sale ticket
+        return onSaleTickets[0];
     };
 
     if (isLoading) return (
@@ -232,9 +249,20 @@ export default function EventDetailPage() {
 
     const currentRound = event.rounds?.find((r: Round) => r.id === selectedRound) || event.rounds?.[0];
     const autoSelectedTicket = getAutoSelectedTicket();
+    const nextSaleStart = !autoSelectedTicket ? getNextSaleStartDate() : null;
+    const isSaleNotStarted = !autoSelectedTicket && !!nextSaleStart;
 
-    // Get add-on tickets
-    const addonTickets = event.ticketTypes?.filter(t => t.ticketCategory === 'addon' && isTicketAllowedForUser(t)) || [];
+    // Detect "no tickets for your role" scenario
+    const allPrimaryTickets = event.ticketTypes?.filter(t => t.ticketCategory !== 'addon') || [];
+    const roleFilteredTickets = allPrimaryTickets.filter(t => isTicketAllowedForUser(t));
+    const hasTicketsButNotForRole = !autoSelectedTicket && !isSaleNotStarted && allPrimaryTickets.length > 0 && roleFilteredTickets.length === 0;
+
+    // Detect "all sold out" scenario
+    const onSaleForRole = roleFilteredTickets.filter(t => isTicketOnSale(t));
+    const allSoldOut = !autoSelectedTicket && !isSaleNotStarted && !hasTicketsButNotForRole && onSaleForRole.length > 0 && onSaleForRole.every(t => t.available !== undefined && t.available <= 0);
+
+    // Get add-on tickets (only show add-ons that are within their sale period)
+    const addonTickets = event.ticketTypes?.filter(t => t.ticketCategory === 'addon' && isTicketAllowedForUser(t) && isTicketOnSale(t)) || [];
     const selectedAddonTickets = event.ticketTypes?.filter(t => selectedAddons.includes(String(t.id))) || [];
     const addonsTotal = selectedAddonTickets.reduce((sum, t) => sum + Number(t.price || 0), 0);
     const basePrice = Number(autoSelectedTicket?.price || 0);
@@ -446,9 +474,9 @@ export default function EventDetailPage() {
                                                             <span className="flex items-center gap-2">
                                                                 <Clock className="w-4 h-4 text-[#537547]" />
                                                                 <span className="font-medium">
-                                                                    {session.startTime ? new Date(session.startTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}
+                                                                    {session.startTime ? new Date(session.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'TBA'}
                                                                     {' - '}
-                                                                    {session.endTime ? new Date(session.endTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}
+                                                                    {session.endTime ? new Date(session.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'TBA'}
                                                                 </span>
                                                             </span>
                                                             {session.room && (
@@ -755,6 +783,45 @@ export default function EventDetailPage() {
                                         </span>
                                     </div>
 
+                                    {/* Sale Not Started Notice */}
+                                    {isSaleNotStarted && nextSaleStart && (
+                                        <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Clock className="w-4 h-4 text-amber-600" />
+                                                <span className="text-sm font-semibold text-amber-700">ยังไม่เปิดจำหน่ายตั๋ว</span>
+                                            </div>
+                                            <p className="text-xs text-amber-600">
+                                                เปิดจำหน่าย: {nextSaleStart.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} เวลา {nextSaleStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* No Tickets for User's Role Notice */}
+                                    {hasTicketsButNotForRole && (
+                                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Users className="w-4 h-4 text-blue-600" />
+                                                <span className="text-sm font-semibold text-blue-700">ยังไม่มีตั๋วสำหรับคุณ</span>
+                                            </div>
+                                            <p className="text-xs text-blue-600">
+                                                ระบบยังไม่เปิดจำหน่ายตั๋วสำหรับคุณ กรุณาติดต่อผู้จัดงานเพื่อสอบถามรายละเอียด
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* All Sold Out Notice */}
+                                    {allSoldOut && (
+                                        <div className="bg-red-50 p-4 rounded-xl border border-red-200">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Ticket className="w-4 h-4 text-red-500" />
+                                                <span className="text-sm font-semibold text-red-600">ตั๋วหมดแล้ว</span>
+                                            </div>
+                                            <p className="text-xs text-red-500">
+                                                ตั๋วทุกประเภทสำหรับสถานะของคุณถูกจำหน่ายหมดแล้ว
+                                            </p>
+                                        </div>
+                                    )}
+
                                     {/* Auto-Detected Ticket (like Eventpass) */}
                                     {autoSelectedTicket && (
                                         <div className="bg-[#537547]/10 p-4 rounded-xl border border-[#537547]/20">
@@ -911,14 +978,28 @@ export default function EventDetailPage() {
 
                                 </div>
 
-                                <Link
-                                    href={`/checkout/${event.id}?ticket=${autoSelectedTicket?.id || ''}${selectedSessions.length > 0 ? `&sessions=${selectedSessions.join(',')}` : ''}${selectedAddons.length > 0 ? `&addons=${selectedAddons.join(',')}` : ''}${promoApplied ? `&promo=${promoCode}` : ''}`}
-                                    className="block"
-                                >
-                                    <Button className="w-full h-14 text-lg font-bold bg-gradient-to-r from-[#537547] to-[#456339] hover:from-[#456339] hover:to-[#3a5430] text-white shadow-lg rounded-xl transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]">
-                                        จองตั๋วเลย
+                                {isSaleNotStarted ? (
+                                    <Button disabled className="w-full h-14 text-lg font-bold bg-gray-300 text-gray-500 rounded-xl cursor-not-allowed">
+                                        ยังไม่เปิดจำหน่าย
                                     </Button>
-                                </Link>
+                                ) : hasTicketsButNotForRole ? (
+                                    <Button disabled className="w-full h-14 text-lg font-bold bg-gray-300 text-gray-500 rounded-xl cursor-not-allowed">
+                                        ยังไม่มีตั๋วสำหรับคุณ
+                                    </Button>
+                                ) : allSoldOut ? (
+                                    <Button disabled className="w-full h-14 text-lg font-bold bg-gray-300 text-gray-500 rounded-xl cursor-not-allowed">
+                                        ตั๋วหมดแล้ว
+                                    </Button>
+                                ) : (
+                                    <Link
+                                        href={`/checkout/${event.id}?ticket=${autoSelectedTicket?.id || ''}${selectedSessions.length > 0 ? `&sessions=${selectedSessions.join(',')}` : ''}${selectedAddons.length > 0 ? `&addons=${selectedAddons.join(',')}` : ''}${promoApplied ? `&promo=${promoCode}` : ''}`}
+                                        className="block"
+                                    >
+                                        <Button className="w-full h-14 text-lg font-bold bg-gradient-to-r from-[#537547] to-[#456339] hover:from-[#456339] hover:to-[#3a5430] text-white shadow-lg rounded-xl transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]">
+                                            จองตั๋วเลย
+                                        </Button>
+                                    </Link>
+                                )}
 
                                 {!isLoggedIn && userRole === 'public' && (
                                     <p className="text-xs text-center text-[#537547] mt-3">
@@ -950,18 +1031,63 @@ export default function EventDetailPage() {
                 {/* Mobile Sticky Bottom Bar */}
                 <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-gray-200/80 p-4 z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
                     <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
-                        <div>
-                            <div className="text-xs text-gray-500">รวมทั้งหมด</div>
-                            <div className="text-xl font-bold text-[#537547]">
-                                ฿{Math.round(totalPrice).toLocaleString()}
-                            </div>
-                        </div>
-                        <Button
-                            onClick={() => setMobileBookingOpen(true)}
-                            className="flex-1 max-w-[200px] bg-gradient-to-r from-[#537547] to-[#456339] hover:from-[#456339] hover:to-[#3a5430] text-white h-12 font-bold rounded-xl transition-all hover:scale-105 hover:shadow-lg active:scale-95"
-                        >
-                            เลือกตั๋ว & จอง
-                        </Button>
+                        {isSaleNotStarted ? (
+                            <>
+                                <div>
+                                    <div className="text-xs text-amber-600">ยังไม่เปิดจำหน่าย</div>
+                                    {nextSaleStart && (
+                                        <div className="text-sm font-bold text-amber-700">
+                                            {nextSaleStart.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} {nextSaleStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                        </div>
+                                    )}
+                                </div>
+                                <Button
+                                    disabled
+                                    className="flex-1 max-w-[200px] bg-gray-300 text-gray-500 h-12 font-bold rounded-xl cursor-not-allowed"
+                                >
+                                    ยังไม่เปิดจำหน่าย
+                                </Button>
+                            </>
+                        ) : hasTicketsButNotForRole ? (
+                            <>
+                                <div>
+                                    <div className="text-xs text-blue-600">ยังไม่มีตั๋วสำหรับคุณ</div>
+                                </div>
+                                <Button
+                                    disabled
+                                    className="flex-1 max-w-[200px] bg-gray-300 text-gray-500 h-12 font-bold rounded-xl cursor-not-allowed text-sm"
+                                >
+                                    ยังไม่มีตั๋ว
+                                </Button>
+                            </>
+                        ) : allSoldOut ? (
+                            <>
+                                <div>
+                                    <div className="text-xs text-red-500">ตั๋วหมดแล้ว</div>
+                                </div>
+                                <Button
+                                    disabled
+                                    className="flex-1 max-w-[200px] bg-gray-300 text-gray-500 h-12 font-bold rounded-xl cursor-not-allowed"
+                                >
+                                    ตั๋วหมดแล้ว
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <div>
+                                    <div className="text-xs text-gray-500">รวมทั้งหมด</div>
+                                    <div className="text-xl font-bold text-[#537547]">
+                                        ฿{Math.round(totalPrice).toLocaleString()}
+                                    </div>
+                                </div>
+                                <Button
+                                    onClick={() => setMobileBookingOpen(true)}
+                                    className="flex-1 max-w-[200px] bg-gradient-to-r from-[#537547] to-[#456339] hover:from-[#456339] hover:to-[#3a5430] text-white h-12 font-bold rounded-xl transition-all hover:scale-105 hover:shadow-lg active:scale-95"
+                                >
+                                    เลือกตั๋ว & จอง
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -996,6 +1122,32 @@ export default function EventDetailPage() {
 
                             <div className="flex-1 overflow-y-auto px-6 py-4">
                                 <div className="space-y-4 mb-6">
+                                    {/* No Tickets for User's Role Notice (Mobile Drawer) */}
+                                    {hasTicketsButNotForRole && (
+                                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Users className="w-4 h-4 text-blue-600" />
+                                                <span className="text-sm font-semibold text-blue-700">ยังไม่มีตั๋วสำหรับคุณ</span>
+                                            </div>
+                                            <p className="text-xs text-blue-600">
+                                                ระบบยังไม่เปิดจำหน่ายตั๋วสำหรับคุณ กรุณาติดต่อผู้จัดงานเพื่อสอบถามรายละเอียด
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* All Sold Out Notice (Mobile Drawer) */}
+                                    {allSoldOut && (
+                                        <div className="bg-red-50 p-4 rounded-xl border border-red-200">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Ticket className="w-4 h-4 text-red-500" />
+                                                <span className="text-sm font-semibold text-red-600">ตั๋วหมดแล้ว</span>
+                                            </div>
+                                            <p className="text-xs text-red-500">
+                                                ตั๋วทุกประเภทสำหรับสถานะของคุณถูกจำหน่ายหมดแล้ว
+                                            </p>
+                                        </div>
+                                    )}
+
                                     {/* Auto-Detected Ticket */}
                                     {autoSelectedTicket && (
                                         <div className="bg-[#537547]/10 p-4 rounded-xl border border-[#537547]/20">
@@ -1140,15 +1292,29 @@ export default function EventDetailPage() {
 
                             {/* Bottom Actions inside Drawer */}
                             <div className="p-4 border-t border-gray-200 bg-gray-50">
-                                <Link
-                                    href={`/checkout/${event.id}?ticket=${autoSelectedTicket?.id || ''}${selectedSessions.length > 0 ? `&sessions=${selectedSessions.join(',')}` : ''}${selectedAddons.length > 0 ? `&addons=${selectedAddons.join(',')}` : ''}${promoApplied ? `&promo=${promoCode}` : ''}`}
-                                    className="block"
-                                    onClick={() => setMobileBookingOpen(false)}
-                                >
-                                    <Button className="w-full h-14 text-lg font-bold bg-gradient-to-r from-[#537547] to-[#456339] hover:from-[#456339] hover:to-[#3a5430] text-white shadow-lg rounded-xl transition-all active:scale-[0.98]">
-                                        ยืนยันการจองตั๋ว
+                                {isSaleNotStarted ? (
+                                    <Button disabled className="w-full h-14 text-lg font-bold bg-gray-300 text-gray-500 rounded-xl cursor-not-allowed">
+                                        ยังไม่เปิดจำหน่าย
                                     </Button>
-                                </Link>
+                                ) : hasTicketsButNotForRole ? (
+                                    <Button disabled className="w-full h-14 text-lg font-bold bg-gray-300 text-gray-500 rounded-xl cursor-not-allowed">
+                                        ยังไม่มีตั๋วสำหรับคุณ
+                                    </Button>
+                                ) : allSoldOut ? (
+                                    <Button disabled className="w-full h-14 text-lg font-bold bg-gray-300 text-gray-500 rounded-xl cursor-not-allowed">
+                                        ตั๋วหมดแล้ว
+                                    </Button>
+                                ) : (
+                                    <Link
+                                        href={`/checkout/${event.id}?ticket=${autoSelectedTicket?.id || ''}${selectedSessions.length > 0 ? `&sessions=${selectedSessions.join(',')}` : ''}${selectedAddons.length > 0 ? `&addons=${selectedAddons.join(',')}` : ''}${promoApplied ? `&promo=${promoCode}` : ''}`}
+                                        className="block"
+                                        onClick={() => setMobileBookingOpen(false)}
+                                    >
+                                        <Button className="w-full h-14 text-lg font-bold bg-gradient-to-r from-[#537547] to-[#456339] hover:from-[#456339] hover:to-[#3a5430] text-white shadow-lg rounded-xl transition-all active:scale-[0.98]">
+                                            ยืนยันการจองตั๋ว
+                                        </Button>
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     </div>

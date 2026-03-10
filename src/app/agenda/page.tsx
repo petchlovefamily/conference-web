@@ -131,8 +131,8 @@ export default function AgendaPage() {
     const groupSessionsByTime = (sessionsList: ApiSession[]) => {
         const groups: { time: string; endTime: string; sessions: ApiSession[] }[] = [];
         for (const session of sessionsList) {
-            const timeKey = format(parseISO(session.startTime), 'HH:mm');
-            const endKey = format(parseISO(session.endTime), 'HH:mm');
+            const timeKey = format(parseISO(session.startTime), 'h:mm aa');
+            const endKey = format(parseISO(session.endTime), 'h:mm aa');
             const existing = groups.find(g => g.time === timeKey);
             if (existing) {
                 existing.sessions.push(session);

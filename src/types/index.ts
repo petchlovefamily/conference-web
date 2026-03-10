@@ -44,6 +44,7 @@ export interface Event {
     date?: string;
     time?: string;
     registeredCount?: number;
+    firstSessionStart?: string;
 }
 
 export interface TicketType {

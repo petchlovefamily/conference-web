@@ -421,7 +421,7 @@ export default function ProfilePage() {
                                                                     <span className="flex items-center gap-2">
                                                                         <Calendar className="w-4 h-4 text-[#537547]" />
                                                                         {ticket.event?.startDate
-                                                                            ? `${new Date(ticket.event.startDate).toLocaleDateString('th-TH', { year: '2-digit', month: 'short', day: 'numeric' })} ${new Date(ticket.event.startDate).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} - ${ticket.event.endDate ? new Date(ticket.event.endDate).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : ''}`
+                                                                            ? `${new Date(ticket.event.startDate).toLocaleDateString('th-TH', { year: '2-digit', month: 'short', day: 'numeric' })} ${new Date(ticket.event.startDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} - ${ticket.event.endDate ? new Date(ticket.event.endDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : ''}`
                                                                             : '-'}
                                                                     </span>
                                                                     <span className="flex items-center gap-2">

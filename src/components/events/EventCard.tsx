@@ -14,7 +14,8 @@ function formatDate(dateString: string): string {
     return date.toLocaleDateString('th-TH', {
         day: 'numeric',
         month: 'short',
-        year: 'numeric'
+        year: 'numeric',
+        timeZone: 'Asia/Bangkok'
     });
 }
 

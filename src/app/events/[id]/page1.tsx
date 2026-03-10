@@ -188,6 +188,28 @@ export default function EventDetailPage() {
 
     const currentRound = null; // rounds removed — use event.startDate/endDate/location directly
 
+    // Helper: check if a ticket is within its sale period
+    const isTicketOnSale = (ticket: ApiTicketType) => {
+        const now = new Date();
+        const saleStart = ticket.saleStartDate ? new Date(ticket.saleStartDate) : null;
+        const saleEnd = ticket.saleEndDate ? new Date(ticket.saleEndDate) : null;
+        if (saleStart && now < saleStart) return false;
+        if (saleEnd && now > saleEnd) return false;
+        return true;
+    };
+
+    // Find the nearest upcoming sale start date across all primary tickets
+    const getNextSaleStartDate = (): Date | null => {
+        const now = new Date();
+        const primaryTickets = eventTicketTypes.filter((t: ApiTicketType) => t.category !== 'addon');
+        const futureDates = primaryTickets
+            .filter((t: ApiTicketType) => t.saleStartDate)
+            .map((t: ApiTicketType) => new Date(t.saleStartDate!))
+            .filter((d: Date) => d > now)
+            .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+        return futureDates[0] || null;
+    };
+
     // Auto-detect the best ticket for current user
     const getAutoSelectedTicket = () => {
         if (eventTicketTypes.length === 0) return null;
@@ -196,28 +218,25 @@ export default function EventDetailPage() {
         const primaryTickets = eventTicketTypes.filter((t: ApiTicketType) => t.category !== 'addon');
         if (primaryTickets.length === 0) return null;
 
-        const now = new Date();
+        // Only consider tickets that are currently within their sale period
+        const onSaleTickets = primaryTickets.filter((t: ApiTicketType) => isTicketOnSale(t));
+        if (onSaleTickets.length === 0) return null;
 
-        // Find tickets by category from primary tickets only
-        const earlyBirdTicket = primaryTickets.find((t: ApiTicketType) =>
+        // Find tickets by category from on-sale tickets only
+        const earlyBirdTicket = onSaleTickets.find((t: ApiTicketType) =>
             t.name.toLowerCase().includes('early') || t.name.toLowerCase().includes('bird')
         );
-        const memberTicket = primaryTickets.find((t: ApiTicketType) =>
+        const memberTicket = onSaleTickets.find((t: ApiTicketType) =>
             t.name.toLowerCase().includes('member') || t.name.toLowerCase().includes('สมาชิก')
         );
-        const publicTicket = primaryTickets.find((t: ApiTicketType) =>
+        const publicTicket = onSaleTickets.find((t: ApiTicketType) =>
             t.name.toLowerCase().includes('public') || t.name.toLowerCase().includes('ทั่วไป') || t.name.toLowerCase().includes('general')
         );
 
-        // If early bird exists and is within sale period, return it
+        // Check Early Bird availability
         if (earlyBirdTicket) {
-            const salesStart = earlyBirdTicket.saleStartDate ? new Date(earlyBirdTicket.saleStartDate) : null;
-            const salesEnd = earlyBirdTicket.saleEndDate ? new Date(earlyBirdTicket.saleEndDate) : null; // Changed from sevenDaysBeforeEvent
-
-            const isWithinSalePeriod = (!salesStart || now >= salesStart) && (!salesEnd || now <= salesEnd);
             const hasAvailability = (earlyBirdTicket.quota - earlyBirdTicket.soldCount) > 0;
-
-            if (isWithinSalePeriod && hasAvailability) {
+            if (hasAvailability) {
                 return earlyBirdTicket;
             }
         }
@@ -232,16 +251,18 @@ export default function EventDetailPage() {
         }
 
         // Otherwise return public ticket
-        return publicTicket || primaryTickets[0] || null;
+        return publicTicket || onSaleTickets[0] || null;
     };
 
     if (isLoading) return <div className="min-h-screen bg-white text-[#6f7e0d] flex items-center justify-center">Loading event details...</div>;
     if (isError || !event) return <div className="min-h-screen bg-white text-[#6f7e0d] flex items-center justify-center">Event not found</div>;
 
     const autoSelectedTicket = getAutoSelectedTicket();
+    const nextSaleStart = !autoSelectedTicket ? getNextSaleStartDate() : null;
+    const isSaleNotStarted = !autoSelectedTicket && !!nextSaleStart;
 
-    // Get add-on tickets
-    const addonTickets = eventTicketTypes.filter((t: ApiTicketType) => t.category === 'addon');
+    // Get add-on tickets (only show add-ons within their sale period)
+    const addonTickets = eventTicketTypes.filter((t: ApiTicketType) => t.category === 'addon' && isTicketOnSale(t));
     const selectedAddonTickets = eventTicketTypes.filter((t: ApiTicketType) => selectedAddons.includes(String(t.id)));
     const addonsTotal = selectedAddonTickets.reduce((sum: number, t: ApiTicketType) => sum + Number(t.price || 0), 0);
     const basePrice = autoSelectedTicket ? Number(autoSelectedTicket.price) : 0;
@@ -349,16 +370,35 @@ export default function EventDetailPage() {
                     {/* Price & Book Button */}
                     <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center justify-between">
                         <div>
-                            <div className="text-xs text-gray-500">ราคา</div>
-                            <div className="text-2xl font-bold text-[#537547]">
-                                ฿{basePrice.toLocaleString()}
-                            </div>
+                            {isSaleNotStarted ? (
+                                <>
+                                    <div className="text-xs text-amber-600">ยังไม่เปิดจำหน่าย</div>
+                                    {nextSaleStart && (
+                                        <div className="text-sm font-bold text-amber-700">
+                                            เปิด {nextSaleStart.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} {nextSaleStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="text-xs text-gray-500">ราคา</div>
+                                    <div className="text-2xl font-bold text-[#537547]">
+                                        ฿{basePrice.toLocaleString()}
+                                    </div>
+                                </>
+                            )}
                         </div>
-                        <Link href={`/checkout/${event.id}`}>
-                            <Button className="bg-[#537547] hover:bg-[#456339] text-white px-6 h-12 font-bold rounded-xl transition-transform hover:scale-105 active:scale-95">
-                                จองตั๋ว
+                        {isSaleNotStarted ? (
+                            <Button disabled className="bg-gray-300 text-gray-500 px-6 h-12 font-bold rounded-xl cursor-not-allowed">
+                                ยังไม่เปิดจำหน่าย
                             </Button>
-                        </Link>
+                        ) : (
+                            <Link href={`/checkout/${event.id}`}>
+                                <Button className="bg-[#537547] hover:bg-[#456339] text-white px-6 h-12 font-bold rounded-xl transition-transform hover:scale-105 active:scale-95">
+                                    จองตั๋ว
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
 
@@ -405,9 +445,9 @@ export default function EventDetailPage() {
                                                         <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-500 mt-1">
                                                             <span className="flex items-center gap-1">
                                                                 <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-                                                                {session.startTime ? new Date(session.startTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}
+                                                                {session.startTime ? new Date(session.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'TBA'}
                                                                 {' - '}
-                                                                {session.endTime ? new Date(session.endTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}
+                                                                {session.endTime ? new Date(session.endTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'TBA'}
                                                             </span>
                                                             {session.room && (
                                                                 <span className="flex items-center gap-1">
@@ -850,15 +890,21 @@ export default function EventDetailPage() {
 
                                 </div>
 
-                                <Link
-                                    href={`/checkout/${event.id}?ticket=${autoSelectedTicket?.id || ''}${selectedAddons.length > 0 ? `&addons=${selectedAddons.join(',')}` : ''}${promoApplied ? `&promo=${promoCode}` : ''}`}
-                                    className="block"
-                                >
-                                    <Button className="relative overflow-hidden w-full h-14 text-lg font-bold bg-[#537547] hover:bg-[#456339] text-white shadow-lg rounded-xl transition-transform hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] group">
-                                        <span className="relative z-10">จองตั๋วเลย</span>
-                                        <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-70 group-hover:animate-shimmer" />
+                                {isSaleNotStarted ? (
+                                    <Button disabled className="w-full h-14 text-lg font-bold bg-gray-300 text-gray-500 rounded-xl cursor-not-allowed">
+                                        ยังไม่เปิดจำหน่าย
                                     </Button>
-                                </Link>
+                                ) : (
+                                    <Link
+                                        href={`/checkout/${event.id}?ticket=${autoSelectedTicket?.id || ''}${selectedAddons.length > 0 ? `&addons=${selectedAddons.join(',')}` : ''}${promoApplied ? `&promo=${promoCode}` : ''}`}
+                                        className="block"
+                                    >
+                                        <Button className="relative overflow-hidden w-full h-14 text-lg font-bold bg-[#537547] hover:bg-[#456339] text-white shadow-lg rounded-xl transition-transform hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] group">
+                                            <span className="relative z-10">จองตั๋วเลย</span>
+                                            <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-70 group-hover:animate-shimmer" />
+                                        </Button>
+                                    </Link>
+                                )}
 
                                 {!isLoggedIn && userRole === 'public' && (
                                     <p className="text-xs text-center text-[#537547] mt-3">
@@ -885,17 +931,35 @@ export default function EventDetailPage() {
                 {/* Mobile Sticky Bottom Bar */}
                 <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-200 p-4 z-40">
                     <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
-                        <div>
-                            <div className="text-xs text-gray-500">เริ่มต้นที่</div>
-                            <div className="text-xl font-bold text-[#537547]">
-                                ฿{basePrice.toLocaleString()}
-                            </div>
-                        </div>
-                        <Link href={`/checkout/${event.id}`} className="flex-1 max-w-[200px]">
-                            <Button className="w-full bg-[#537547] hover:bg-[#456339] text-white h-12 font-bold rounded-xl transition-transform hover:scale-105 active:scale-95">
-                                จองตั๋วเลย
-                            </Button>
-                        </Link>
+                        {isSaleNotStarted ? (
+                            <>
+                                <div>
+                                    <div className="text-xs text-amber-600">ยังไม่เปิดจำหน่าย</div>
+                                    {nextSaleStart && (
+                                        <div className="text-sm font-bold text-amber-700">
+                                            {nextSaleStart.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} {nextSaleStart.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                        </div>
+                                    )}
+                                </div>
+                                <Button disabled className="flex-1 max-w-[200px] bg-gray-300 text-gray-500 h-12 font-bold rounded-xl cursor-not-allowed">
+                                    ยังไม่เปิดจำหน่าย
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <div>
+                                    <div className="text-xs text-gray-500">เริ่มต้นที่</div>
+                                    <div className="text-xl font-bold text-[#537547]">
+                                        ฿{basePrice.toLocaleString()}
+                                    </div>
+                                </div>
+                                <Link href={`/checkout/${event.id}`} className="flex-1 max-w-[200px]">
+                                    <Button className="w-full bg-[#537547] hover:bg-[#456339] text-white h-12 font-bold rounded-xl transition-transform hover:scale-105 active:scale-95">
+                                        จองตั๋วเลย
+                                    </Button>
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </div>
 
