@@ -74,7 +74,7 @@ export default function AgendaPage() {
                     })
                     .filter((d: any): d is Date => d !== null);
 
-                const uniqueDates = sessionDates.reduce<Date[]>((acc, date) => {
+                const uniqueDates = (sessionDates as Date[]).reduce<Date[]>((acc, date) => {
                     if (!acc.some(d => isSameDay(d, date))) acc.push(date);
                     return acc;
                 }, []);

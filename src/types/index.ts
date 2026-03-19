@@ -45,6 +45,7 @@ export interface Event {
     time?: string;
     registeredCount?: number;
     firstSessionStart?: string;
+    websiteUrl?: string | null;
 }
 
 export interface TicketType {

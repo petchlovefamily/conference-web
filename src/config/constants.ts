@@ -18,9 +18,9 @@ export const DEFAULT_SPEAKER_IMAGE = 'https://via.placeholder.com/80';
 // CPE Configuration
 export const CPE_COUNCIL_NAME = 'สภาเภสัชกรรมแห่งประเทศไทย';
 
-// Payment
-export const STRIPE_TEST_CARD = '4242 4242 4242 4242';
-export const SUPPORTED_PAYMENT_METHODS = ['credit_card', 'promptpay', 'bank_transfer'] as const;
+// Payment (Pay Solutions)
+export const SUPPORTED_PAYMENT_METHODS = ['qr', 'card'] as const;
+export const CONFERENCE_HUB_URL = process.env.NEXT_PUBLIC_CONFERENCE_HUB_URL || 'http://localhost:3003';
 
 // User Roles
 export const USER_ROLES = {

@@ -28,6 +28,40 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const AUTH_UNAUTHORIZED_EVENT = 'conference-web-auth:unauthorized';
+
+function isTokenExpired(token: string): boolean {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.exp * 1000 < Date.now();
+    } catch {
+        return true;
+    }
+}
+
+async function verifyTokenWithApi(tokenToVerify: string): Promise<User | null> {
+    try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/users/profile`, {
+            headers: {
+                'Authorization': `Bearer ${tokenToVerify}`,
+            },
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.user) {
+                return {
+                    ...data.user,
+                    name: `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() || data.user.email,
+                };
+            }
+        }
+    } catch (error) {
+        console.error('Token verification failed:', error);
+    }
+    return null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(null);
@@ -37,38 +71,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const storedToken = localStorage.getItem('token');
-                if (!storedToken) {
+                // Try localStorage (OTT SSO handles cross-app auth via /auth/sso callback)
+                const resolvedToken = localStorage.getItem('token');
+
+                if (!resolvedToken || isTokenExpired(resolvedToken)) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
                     setIsLoading(false);
                     return;
                 }
 
-                // Verify token by fetching user profile
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/users/profile`, {
-                    headers: {
-                        'Authorization': `Bearer ${storedToken}`,
-                    },
-                });
+                // Verify token with API
+                const profileUser = await verifyTokenWithApi(resolvedToken);
 
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success && data.user) {
-                        const profileUser = {
-                            ...data.user,
-                            name: `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim() || data.user.email,
-                        };
-                        setToken(storedToken);
-                        setUser(profileUser);
-                        localStorage.setItem('user', JSON.stringify(profileUser));
-                    } else {
-                        throw new Error('Invalid profile response');
-                    }
+                if (profileUser) {
+                    setToken(resolvedToken);
+                    setUser(profileUser);
+                    localStorage.setItem('token', resolvedToken);
+                    localStorage.setItem('user', JSON.stringify(profileUser));
                 } else {
-                    throw new Error('Token verification failed');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
                 }
             } catch (error) {
                 console.error('Auth check failed:', error);
-                // Clear invalid data
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 setToken(null);
@@ -79,6 +105,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
 
         checkAuth();
+    }, []);
+
+    // Centralized 401 handling
+    useEffect(() => {
+        const handleUnauthorized = () => {
+            console.warn('Unauthorized API response, logging out');
+            setUser(null);
+            setToken(null);
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+        };
+
+        window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+        return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
     }, []);
 
     const login = (newToken: string, newUser: User) => {

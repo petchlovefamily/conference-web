@@ -257,7 +257,7 @@ export default function EventsPage() {
 
                                     {/* Action */}
                                     <div className="flex-shrink-0">
-                                        <Link href={`/events/${event.id}`}>
+                                        <Link href={`/checkout/${event.id}`}>
                                             <Button className="h-12 px-8 rounded-full bg-[#537547] hover:bg-[#456339] text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95">
                                                 ลงทะเบียน <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
                                             </Button>

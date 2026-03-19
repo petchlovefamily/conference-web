@@ -14,17 +14,40 @@ export interface Event {
     cpeCredits: string;
     status: string;
     imageUrl: string | null;
+    websiteUrl: string | null;
 }
 
 export interface TicketType {
     id: number;
     eventId: number;
     name: string;
+    groupName?: string;
     description: string | null;
     price: string;
+    currency?: string;
     quota: number;
     soldCount: number;
     isActive: boolean;
+    category?: string;        // 'primary' | 'addon'
+    ticketCategory?: string;  // legacy alias
+    features?: string[];
+    badgeText?: string | null;
+    originalPrice?: string | null;
+    allowedRoles?: string[];
+    salesStart?: string;
+    salesEnd?: string;
+    available?: number;
+    // Sessions linked to this ticket (for workshop tickets)
+    sessions?: Array<{
+        id: number;
+        sessionCode?: string;
+        sessionName: string;
+        description?: string | null;
+        startTime?: string;
+        endTime?: string;
+        room?: string | null;
+        maxCapacity?: number;
+    }>;
 }
 
 export interface Speaker {
@@ -39,6 +62,23 @@ export interface Speaker {
 export interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
     speakers?: Speaker[];
+    coverImage?: string | null;
+    videoUrl?: string | null;
+    mapUrl?: string | null;
+    documents?: Array<{ name: string; url: string }>;
+    sessions?: Array<{
+        id: number;
+        sessionCode?: string;
+        sessionName: string;
+        description?: string | null;
+        startTime?: string;
+        endTime?: string;
+        room?: string | null;
+        maxCapacity?: number;
+        speakers?: string;
+    }>;
+    images?: Array<{ id: number; imageUrl: string; caption?: string }>;
+    registeredCount?: number;
 }
 
 interface CreateEventData {
@@ -56,9 +96,15 @@ interface CreateEventData {
 
 // Events API
 export const eventsApi = {
-    list: () => api.get<{ success: boolean; data: Event[] }>('/api/events'),
+    list: async () => {
+        const res = await api.get<{ events: Event[] }>('/api/events');
+        return { success: true, data: res.events };
+    },
 
-    get: (id: number) => api.get<{ success: boolean; data: EventWithTickets }>(`/api/events/${id}`),
+    get: async (id: number) => {
+        const res = await api.get<{ event: EventWithTickets }>(`/api/events/${id}`);
+        return { success: true, data: res.event };
+    },
 
     create: (data: CreateEventData) =>
         api.post<{ success: boolean; data: Event }>('/api/events', data),
