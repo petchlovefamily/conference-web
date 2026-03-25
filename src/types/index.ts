@@ -58,6 +58,7 @@ export interface TicketType {
     soldCount?: number;
     salesStart?: string;
     salesEnd?: string;
+    groupName?: string;
     // API compatibility
     description?: string;
     available?: number;

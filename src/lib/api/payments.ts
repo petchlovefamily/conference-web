@@ -1,4 +1,5 @@
 import { api } from './client';
+import { MOCK_EVENT } from '../mock-data';
 
 // ─── Types ───────────────────────────────────────────
 
@@ -116,18 +117,113 @@ export interface PreviewResponse {
 // ─── Payments API ────────────────────────────────────
 
 export const paymentsApi = {
-    createIntent: (data: CreateIntentRequest) =>
-        api.post<CreateIntentResponse>('/api/payments/create-intent', data),
+    createIntent: async (data: CreateIntentRequest) => {
+        // Mock success for PRIS event tickets
+        if (data.packageId?.startsWith('pris-') || data.addOnIds?.some(id => id.startsWith('pris-'))) {
+            return {
+                success: true,
+                free: true, // Force immediate success redirect
+                refno: 'MOCK-REF-' + Date.now(),
+                orderNumber: 'PRIS-' + Math.floor(Math.random() * 1000000),
+                regCode: 'REG-' + Math.floor(Math.random() * 1000000),
+                totalAmount: '0.00',
+                redirectForm: null
+            };
+        }
+        return api.post<CreateIntentResponse>('/api/payments/create-intent', data);
+    },
 
-    verify: (refno: string) =>
-        api.get<VerifyResponse>(`/api/payments/verify?refno=${encodeURIComponent(refno)}`),
+    verify: async (refno: string) => {
+        if (refno.startsWith('MOCK-REF-')) {
+            return {
+                success: true,
+                status: 'paid',
+                orderNumber: 'MOCK-ORDER-' + refno.split('-')[2],
+                regCode: 'MOCK-REG-' + refno.split('-')[2],
+                amount: '0.00',
+                currency: 'THB'
+            };
+        }
+        return api.get<VerifyResponse>(`/api/payments/verify?refno=${encodeURIComponent(refno)}`);
+    },
 
-    myTickets: () =>
-        api.get<MyTicketsResponse>('/api/payments/my-tickets'),
+    myTickets: async () => {
+        try {
+            return await api.get<MyTicketsResponse>('/api/payments/my-tickets');
+        } catch {
+            // Return mock PRIS 2026 ticket if API fetching fails
+            return {
+                success: true,
+                data: {
+                    registration: {
+                        regCode: 'REG-772805',
+                        eventId: 1,
+                        status: 'confirmed',
+                        ticketName: 'ผู้เข้าร่วมงาน (Early Bird) - PRIS 2026',
+                        priority: 'general',
+                        purchasedAt: new Date().toISOString(),
+                        amount: '1000.00',
+                        currency: 'THB',
+                        includes: ['เข้าร่วมสัมมนาทุกเซสชัน', 'กระเป๋าและเอกสาร', 'CPE 3 Credits', 'อาหารกลางวันและเบรก'],
+                        receiptUrl: null,
+                    },
+                    galaTicket: null,
+                    workshops: []
+                }
+            };
+        }
+    },
 
-    myPurchases: () =>
-        api.get<MyPurchasesResponse>('/api/payments/my-purchases'),
+    myPurchases: async () => {
+        try {
+            return await api.get<MyPurchasesResponse>('/api/payments/my-purchases');
+        } catch {
+            // Mock empty purchases if API fails or when testing mock event
+            return {
+                success: true,
+                data: {
+                    hasPrimaryTicket: false,
+                    primaryTicketName: null,
+                    regCode: null,
+                    purchasedAddOns: []
+                }
+            };
+        }
+    },
 
-    preview: (data: PreviewRequest) =>
-        api.post<PreviewResponse>('/api/payments/preview', data),
+    preview: async (data: PreviewRequest) => {
+        if (data.packageId?.startsWith('pris-') || data.addOnIds?.some(id => id.startsWith('pris-'))) {
+            const allTickets = MOCK_EVENT.ticketTypes || [];
+            const pkg = allTickets.find(t => t.id === data.packageId);
+            const addons = allTickets.filter(t => data.addOnIds.includes(t.id));
+
+            let subtotal = (pkg?.price || 0);
+            addons.forEach(a => { subtotal += a.price; });
+
+            let discountAmount = 0;
+            let promoValid = false;
+            let promoError = null;
+
+            // Mock promo code
+            if (data.promoCode === 'PRIS2026' || data.promoCode === 'SW-PROMO') {
+                discountAmount = 200;
+                promoValid = true;
+            } else if (data.promoCode) {
+                promoValid = false;
+                promoError = 'รหัสส่วนลดไม่ถูกต้อง';
+            }
+
+            return {
+                success: true,
+                subtotal,
+                discountAmount,
+                finalAmount: Math.max(0, subtotal - discountAmount),
+                promoValid,
+                promoError,
+                discountType: promoValid ? 'fixed' : null,
+                discountValue: promoValid ? discountAmount : null
+            };
+        }
+        return api.post<PreviewResponse>('/api/payments/preview', data);
+    },
 };

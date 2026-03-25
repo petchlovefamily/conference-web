@@ -97,11 +97,61 @@ interface CreateEventData {
 // Events API
 export const eventsApi = {
     list: async () => {
+        // In dev mode, we could prepend mock events here if needed
         const res = await api.get<{ events: Event[] }>('/api/events');
         return { success: true, data: res.events };
     },
 
-    get: async (id: number) => {
+    get: async (id: number | string) => {
+        // Handle mock event ID
+        if (id === 'mock-event-2025' || String(id) === 'NaN') {
+            // Need to import MOCK_EVENT dynamically or just define it here.
+            // Since this is a small file, I'll import it if possible or use a local mock.
+            // Looking at the project structure, I can import from '@/lib/mock-data'
+            const { MOCK_EVENT } = await import('@/lib/mock-data');
+            
+            // Map MOCK_EVENT (frontend type) to EventWithTickets (API type)
+            const mockEvent: EventWithTickets = {
+                id: 0,
+                eventCode: MOCK_EVENT.code,
+                eventName: MOCK_EVENT.name,
+                description: MOCK_EVENT.description,
+                eventType: MOCK_EVENT.eventType,
+                location: MOCK_EVENT.location || MOCK_EVENT.venue,
+                startDate: MOCK_EVENT.startDate,
+                endDate: MOCK_EVENT.endDate,
+                maxCapacity: MOCK_EVENT.maxCapacity || 1000,
+                cpeCredits: String(MOCK_EVENT.cpeCredits),
+                status: MOCK_EVENT.status,
+                imageUrl: MOCK_EVENT.imageUrl || null,
+                websiteUrl: null,
+                coverImage: MOCK_EVENT.coverImage || null,
+                videoUrl: MOCK_EVENT.videoUrl || null,
+                mapUrl: MOCK_EVENT.mapUrl || null,
+                registeredCount: MOCK_EVENT.registeredCount,
+                ticketTypes: MOCK_EVENT.ticketTypes?.map((t: any) => ({
+                    id: t.id,
+                    eventId: 0,
+                    name: t.name,
+                    groupName: t.groupName || t.name,
+                    description: t.description || null,
+                    price: String(t.price),
+                    currency: 'THB',
+                    quota: t.quota || 0,
+                    soldCount: 0,
+                    isActive: true,
+                    category: t.ticketCategory || 'primary',
+                    allowedRoles: t.allowedRoles || [],
+                })) || [],
+                images: MOCK_EVENT.images?.map((img: any) => ({
+                    id: img.id,
+                    imageUrl: img.imageUrl,
+                    caption: img.caption
+                })) || [],
+            };
+            return { success: true, data: mockEvent };
+        }
+
         const res = await api.get<{ event: EventWithTickets }>(`/api/events/${id}`);
         return { success: true, data: res.event };
     },

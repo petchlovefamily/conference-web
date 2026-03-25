@@ -136,97 +136,98 @@ export default function MyTicketsPage() {
                 <div className="container mx-auto max-w-3xl">
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">ตั๋วของฉัน</h1>
 
-                    {/* Primary Registration Card */}
-                    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
-                        <div className="bg-gradient-to-r from-[#537547] to-[#6f7e0d] p-5">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="text-white/80 text-xs uppercase tracking-wider">ตั๋วหลัก</div>
-                                    <h3 className="text-white text-lg font-bold mt-1">{reg.ticketName}</h3>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-white/80 text-xs">รหัสลงทะเบียน</div>
-                                    <div className="text-white font-mono font-bold text-lg">{reg.regCode}</div>
-                                </div>
+                    {/* Primary Registration Card - Mockup Ticket with QR */}
+                    <div className="bg-white border border-gray-200 rounded-2xl shadow-md overflow-hidden mb-6 flex flex-col md:flex-row">
+                        {/* Ticket Stub (QR Code side) */}
+                        <div className="md:w-64 bg-gray-50 border-b md:border-b-0 md:border-r border-gray-200 border-dashed p-6 flex flex-col items-center justify-center shrink-0 relative">
+                            {/* Decorative Cutouts */}
+                            <div className="hidden md:block absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-50 rounded-full border-r border-gray-200 shadow-inner" />
+                            <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full border-l border-gray-200 shadow-inner z-10" />
+
+                            <div className="w-40 h-40 bg-white rounded-xl p-3 shadow-sm border border-gray-200 flex items-center justify-center mb-4">
+                                {/* Use an external API to generate a mock QR code from the regCode */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(reg.regCode || 'NO-CODE')}&margin=0`}
+                                    alt="Ticket QR Code"
+                                    className="w-full h-full object-contain"
+                                    loading="lazy"
+                                />
+                            </div>
+                            <div className="text-center space-y-1">
+                                <span className="text-[10px] text-gray-500 font-medium uppercase tracking-widest block">Scan for Entry</span>
+                                <span className="font-mono font-bold text-gray-900 text-lg block tracking-wider">{reg.regCode}</span>
                             </div>
                         </div>
 
-                        <div className="p-5 space-y-4">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <span className="text-gray-500">สถานะ</span>
-                                    <div className="mt-0.5">
-                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                            reg.status === 'confirmed'
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-amber-100 text-amber-700'
-                                        }`}>
-                                            {reg.status === 'confirmed' ? '✓ ยืนยันแล้ว' : reg.status}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500">ราคา</span>
-                                    <div className="font-semibold text-gray-900 mt-0.5">
-                                        {formatPrice(reg.amount, reg.currency)}
-                                    </div>
-                                </div>
-                                {reg.purchasedAt && (
-                                    <div>
-                                        <span className="text-gray-500">วันที่ซื้อ</span>
-                                        <div className="text-gray-700 mt-0.5">{formatDate(reg.purchasedAt)}</div>
-                                    </div>
-                                )}
-                                {reg.priority && (
-                                    <div>
-                                        <span className="text-gray-500">ระดับ</span>
-                                        <div className="text-gray-700 mt-0.5 capitalize">{reg.priority}</div>
-                                    </div>
-                                )}
+                        {/* Ticket Details side */}
+                        <div className="flex-1 flex flex-col relative">
+                            <div className="bg-gradient-to-r from-[#537547] to-[#6f7e0d] p-5 md:p-6">
+                                <div className="text-white/80 text-xs font-medium uppercase tracking-wider">Admission Ticket</div>
+                                <h3 className="text-white text-xl font-bold mt-1 line-clamp-2 leading-tight">{reg.ticketName}</h3>
                             </div>
 
-                            {/* Includes */}
-                            {reg.includes && reg.includes.length > 0 && (
-                                <div className="pt-3 border-t border-gray-100">
-                                    <div className="text-xs text-gray-500 mb-2">รวมสิทธิ์</div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {reg.includes.map((feature, i) => (
-                                            <span key={i} className="px-2 py-1 bg-[#537547]/10 text-[#537547] text-xs rounded-lg">
-                                                {feature}
-                                            </span>
-                                        ))}
+                            <div className="p-5 md:p-6 flex-1 flex flex-col justify-between space-y-6">
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-6 gap-x-4 text-sm">
+                                    <div>
+                                        <span className="text-gray-500 font-medium text-xs uppercase tracking-wider block mb-1">Status</span>
+                                        <span className={`inline-flex items-center gap-1 mt-0.5 px-2.5 py-1 rounded-md text-xs font-bold ${
+                                            reg.status === 'confirmed'
+                                                ? 'bg-green-100 text-green-700 border border-green-200'
+                                                : 'bg-amber-100 text-amber-700 border border-amber-200'
+                                        }`}>
+                                            {reg.status === 'confirmed' ? '✓ CONFIRMED' : reg.status.toUpperCase()}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500 font-medium text-xs uppercase tracking-wider block mb-1">Price</span>
+                                        <span className="font-semibold text-gray-900 text-base">{formatPrice(reg.amount, reg.currency)}</span>
+                                    </div>
+                                    {reg.purchasedAt && (
+                                        <div>
+                                            <span className="text-gray-500 font-medium text-xs uppercase tracking-wider block mb-1">Purchased</span>
+                                            <span className="text-gray-800 font-medium">{formatDate(reg.purchasedAt)}</span>
+                                        </div>
+                                    )}
+                                    {reg.priority && (
+                                        <div>
+                                            <span className="text-gray-500 font-medium text-xs uppercase tracking-wider block mb-1">Tier</span>
+                                            <span className="text-gray-800 font-medium capitalize">{reg.priority}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Includes */}
+                                {reg.includes && reg.includes.length > 0 && (
+                                    <div className="pt-4 border-t border-gray-100">
+                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-3">Included Benefits</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {reg.includes.map((feature, i) => (
+                                                <span key={i} className="px-2.5 py-1 bg-[#537547]/5 border border-[#537547]/20 text-[#537547] font-medium text-xs rounded-md">
+                                                    {feature}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Action Links */}
+                                <div className="pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-gray-100">
+                                    <div className="flex items-center gap-4">
+                                        {reg.receiptUrl && (
+                                            <a
+                                                href={reg.receiptUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                                Download Receipt
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
-                            )}
-
-                            {/* Receipt download */}
-                            {reg.receiptUrl && (
-                                <div className="pt-3 border-t border-gray-100">
-                                    <a
-                                        href={reg.receiptUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-sm text-[#537547] hover:text-[#456339] transition-colors"
-                                    >
-                                        <Download className="w-4 h-4" />
-                                        ดาวน์โหลดใบเสร็จ
-                                    </a>
-                                </div>
-                            )}
-
-                            {/* Buy add-on link */}
-                            {reg.eventId && (
-                                <div className="pt-3 border-t border-gray-100">
-                                    <Link
-                                        href={`/checkout/${reg.eventId}?mode=addon`}
-                                        className="inline-flex items-center gap-1.5 text-sm text-[#537547] hover:text-[#456339] font-medium transition-colors"
-                                    >
-                                        <ShoppingBag className="w-4 h-4" />
-                                        ซื้อ Add-on เพิ่ม
-                                        <ChevronRight className="w-3.5 h-3.5" />
-                                    </Link>
-                                </div>
-                            )}
+                            </div>
                         </div>
                     </div>
 

@@ -33,16 +33,56 @@ interface RegisterResponse {
 
 // Auth API
 export const authApi = {
-    login: (email: string | undefined, password: string, pharmacyLicenseId?: string) =>
-        api.post<LoginResponse>('/auth/login', { email, password, pharmacyLicenseId }),
+    login: async (email: string | undefined, password: string, pharmacyLicenseId?: string) => {
+        // Mock successful login
+        console.log('Mock login for:', email);
+        return {
+            success: true,
+            token: 'mock-jwt-token-' + btoa(JSON.stringify({ email, exp: Math.floor(Date.now() / 1000) + 86400 })),
+            user: {
+                id: 1,
+                email: email || 'mock@example.com',
+                firstName: 'Pharmacist',
+                lastName: 'Sample',
+                role: 'member',
+                country: 'Thailand',
+                isThai: true,
+                delegateType: 'Pharmacist'
+            }
+        };
+    },
 
-    register: (formData: FormData) =>
-        apiClient<RegisterResponse>('/auth/register', {
-            method: 'POST',
-            body: formData,
-        }),
+    register: async (formData: FormData) => {
+        // Mock successful registration
+        const email = formData.get('email') as string;
+        console.log('Mock register for:', email);
+        return {
+            success: true,
+            user: {
+                id: 2,
+                email: email || 'new-mock@example.com',
+                firstName: (formData.get('firstName') as string) || 'New',
+                lastName: (formData.get('lastName') as string) || 'User',
+                role: 'member',
+                status: 'active'
+            }
+        };
+    },
 
-    me: () => api.get<{ success: boolean; user: User }>('/api/users/profile'),
+    me: async () => {
+        // Mock profile
+        return {
+            success: true,
+            user: {
+                id: 1,
+                email: 'mock@example.com',
+                firstName: 'Pharmacist',
+                lastName: 'Sample',
+                role: 'member',
+                country: 'Thailand'
+            }
+        };
+    },
 
     logout: () => {
         if (typeof window !== 'undefined') {

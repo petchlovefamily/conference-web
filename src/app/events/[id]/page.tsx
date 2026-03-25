@@ -305,7 +305,7 @@ export default function EventDetailPage() {
                         </div>
 
                         {/* Title */}
-                        <h1 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 sm:mb-4 leading-tight max-w-4xl text-white drop-shadow-lg [text-shadow:_0_2px_10px_rgba(0,0,0,0.5)] scroll-animate fade-up stagger-2 ${mounted ? 'is-visible' : ''}`}>
+                        <h1 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold mb-3 sm:mb-4 leading-tight max-w-4xl text-white drop-shadow-lg [text-shadow:_0_2px_10px_rgba(0,0,0,0.5)] scroll-animate fade-up stagger-2 ${mounted ? 'is-visible' : ''}`}>
                             {event.name}
                         </h1>
 

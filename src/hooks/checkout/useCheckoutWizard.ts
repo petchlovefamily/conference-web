@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 
 export interface CheckoutData {
     // Step 1: ข้อมูลส่วนตัว
@@ -76,12 +76,15 @@ const STEPS = [
     { id: 2, label: 'เลือกแพ็กเกจ' },
     { id: 3, label: 'ใบกำกับภาษี' },
     { id: 4, label: 'วิธีชำระเงิน' },
+    { id: 5, label: 'สรุปการสั่งซื้อ' },
 ] as const;
 
-export function useCheckoutWizard(eventId: string) {
+export function useCheckoutWizard(eventId: string, filter?: (step: typeof STEPS[number]) => boolean) {
     const storageKey = `checkout-wizard-${eventId}`;
     const [currentStep, setCurrentStep] = useState(1);
     const [checkoutData, setCheckoutData] = useState<CheckoutData>(INITIAL_CHECKOUT_DATA);
+
+    const availableSteps = useMemo(() => (filter ? STEPS.filter(filter) : STEPS), [filter]);
 
     // Restore from sessionStorage on mount
     useEffect(() => {
@@ -93,13 +96,14 @@ export function useCheckoutWizard(eventId: string) {
                     setCheckoutData(parsed.checkoutData);
                 }
                 if (parsed.currentStep) {
-                    setCurrentStep(parsed.currentStep);
+                    const isAvailable = availableSteps.some((s: { id: number }) => s.id === parsed.currentStep);
+                    setCurrentStep(isAvailable ? parsed.currentStep : availableSteps[0].id);
                 }
             }
         } catch {
             // ignore parse errors
         }
-    }, [storageKey]);
+    }, [storageKey, availableSteps]);
 
     // Persist to sessionStorage on change
     useEffect(() => {
@@ -118,18 +122,30 @@ export function useCheckoutWizard(eventId: string) {
     }, []);
 
     const nextStep = useCallback(() => {
-        setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
-    }, []);
+        setCurrentStep(prev => {
+            const currentIndex = availableSteps.findIndex((s: { id: number }) => s.id === prev);
+            if (currentIndex < availableSteps.length - 1) {
+                return availableSteps[currentIndex + 1].id;
+            }
+            return prev;
+        });
+    }, [availableSteps]);
 
     const prevStep = useCallback(() => {
-        setCurrentStep(prev => Math.max(prev - 1, 1));
-    }, []);
+        setCurrentStep(prev => {
+            const currentIndex = availableSteps.findIndex((s: { id: number }) => s.id === prev);
+            if (currentIndex > 0) {
+                return availableSteps[currentIndex - 1].id;
+            }
+            return prev;
+        });
+    }, [availableSteps]);
 
     const goToStep = useCallback((step: number) => {
-        if (step >= 1 && step <= STEPS.length) {
+        if (availableSteps.some((s: { id: number }) => s.id === step)) {
             setCurrentStep(step);
         }
-    }, []);
+    }, [availableSteps]);
 
     const resetWizard = useCallback(() => {
         setCheckoutData(INITIAL_CHECKOUT_DATA);
@@ -161,24 +177,29 @@ export function useCheckoutWizard(eventId: string) {
         return !!checkoutData.paymentMethod;
     }, [checkoutData]);
 
+    const isStep5Valid = useCallback(() => {
+        return true; // Review step is always valid if you reached it
+    }, []);
+
     const isCurrentStepValid = useCallback(() => {
         switch (currentStep) {
             case 1: return isStep1Valid();
             case 2: return isStep2Valid();
             case 3: return isStep3Valid();
             case 4: return isStep4Valid();
+            case 5: return isStep5Valid();
             default: return false;
         }
-    }, [currentStep, isStep1Valid, isStep2Valid, isStep3Valid, isStep4Valid]);
+    }, [currentStep, isStep1Valid, isStep2Valid, isStep3Valid, isStep4Valid, isStep5Valid]);
 
     const canProceedToPayment = useCallback(() => {
-        return isStep1Valid() && isStep2Valid() && isStep3Valid() && isStep4Valid();
-    }, [isStep1Valid, isStep2Valid, isStep3Valid, isStep4Valid]);
+        return isStep1Valid() && isStep2Valid() && isStep3Valid() && isStep4Valid() && currentStep === 5;
+    }, [isStep1Valid, isStep2Valid, isStep3Valid, isStep4Valid, currentStep]);
 
     return {
         currentStep,
         checkoutData,
-        steps: STEPS,
+        steps: availableSteps,
         updateCheckoutData,
         nextStep,
         prevStep,

@@ -38,7 +38,7 @@ export function StepIndicator({ steps, currentStep, onStepClick }: StepIndicator
                                             : 'bg-gray-200 text-gray-500'
                                 }`}
                             >
-                                {isCompleted ? <Check className="w-4 h-4" /> : step.id}
+                                {isCompleted ? <Check className="w-4 h-4" /> : (index + 1)}
                             </div>
                             <span
                                 className={`text-xs sm:text-sm font-medium hidden sm:inline ${

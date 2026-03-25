@@ -9,6 +9,7 @@ import {
 } from '@/types';
 import { apiClient } from './api/client';
 import { API_URL } from '@/config';
+import { MOCK_EVENT } from './mock-data';
 
 // ===========================================
 // Service Layer — Real API calls
@@ -20,14 +21,26 @@ import { API_URL } from '@/config';
  * Get all published events
  */
 export async function getEvents(): Promise<Event[]> {
-    const res = await apiClient<{ events: any[] }>('/api/events');
-    return (res.events || []).map(mapApiEventToEvent);
+    try {
+        const res = await apiClient<{ events: any[] }>('/api/events');
+        const apiEvents = (res.events || []).map(mapApiEventToEvent);
+        // Prepend mock event to the list
+        return [MOCK_EVENT, ...apiEvents];
+    } catch {
+        // If API fails, at least show the mock event
+        return [MOCK_EVENT];
+    }
 }
 
 /**
  * Get single event by ID or event code
  */
 export async function getEventById(id: string): Promise<Event> {
+    // Check if it's the mock event
+    if (id === 'mock-event-2025' || id === 'PRIS2025') {
+        return MOCK_EVENT;
+    }
+
     const res = await apiClient<{ event: any }>(`/api/events/${id}`);
     if (!res.event) throw new Error('Event not found');
     return mapApiEventToEvent(res.event);

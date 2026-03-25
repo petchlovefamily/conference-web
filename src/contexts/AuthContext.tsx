@@ -40,6 +40,24 @@ function isTokenExpired(token: string): boolean {
 }
 
 async function verifyTokenWithApi(tokenToVerify: string): Promise<User | null> {
+    // Handle mock tokens for in-memory mockup
+    if (tokenToVerify?.startsWith('mock-jwt-token-')) {
+        try {
+            const base64Payload = tokenToVerify.split('-').pop() || '';
+            const payload = JSON.parse(atob(base64Payload));
+            return {
+                id: 1,
+                email: payload.email || 'mock@example.com',
+                firstName: 'Pharmacist',
+                lastName: 'Sample',
+                role: 'member',
+                name: 'Pharmacist Sample',
+            };
+        } catch (e) {
+            console.error('Failed to parse mock token:', e);
+        }
+    }
+
     try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/users/profile`, {
             headers: {

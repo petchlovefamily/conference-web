@@ -25,6 +25,7 @@ function PaymentResultInner() {
     const [amount, setAmount] = useState<string | null>(null);
     const [currency, setCurrency] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState('');
+    const [countdown, setCountdown] = useState(10);
     const pollCount = useRef(0);
     const pollTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -124,6 +125,22 @@ function PaymentResultInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [authLoading, refno]);
 
+    useEffect(() => {
+        if (status === 'paid') {
+            const timer = setInterval(() => {
+                setCountdown((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(timer);
+                        window.location.href = 'https://pris2026.vercel.app/en';
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [status]);
+
     const renderContent = () => {
         switch (status) {
             case 'polling':
@@ -180,17 +197,17 @@ function PaymentResultInner() {
                         <p className="text-xs text-gray-400">ใบเสร็จและรายละเอียดจะถูกส่งไปยังอีเมลที่ลงทะเบียน</p>
 
                         <div className="flex gap-3 justify-center pt-2">
+                            <a
+                                href="https://pris2026.vercel.app/en"
+                                className="px-5 py-2.5 bg-[#537547] text-white font-medium rounded-lg hover:bg-[#456339] transition-colors text-sm flex items-center gap-2"
+                            >
+                                ไปยังเว็บไซต์ PRIS 2026 ({countdown}s)
+                            </a>
                             <Link
                                 href="/my-tickets"
-                                className="px-5 py-2.5 bg-[#537547] text-white font-medium rounded-lg hover:bg-[#456339] transition-colors text-sm"
-                            >
-                                ดูตั๋วของฉัน
-                            </Link>
-                            <Link
-                                href="/events"
                                 className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm"
                             >
-                                กลับหน้ารายการ
+                                ดูตั๋วของฉัน
                             </Link>
                         </div>
                     </div>

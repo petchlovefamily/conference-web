@@ -27,14 +27,11 @@ export default function CheckoutPage() {
     const router = useRouter();
     const eventId = params.id as string;
     const modeParam = searchParams.get('mode');
+    const ticketParam = searchParams.get('ticket');
+    const addonsParam = searchParams.get('addons');
+    const promoParam = searchParams.get('promo');
 
     const { user, token, isLoggedIn, isLoading: authLoading } = useAuth();
-
-    const {
-        currentStep, checkoutData, steps, updateCheckoutData,
-        nextStep, prevStep, goToStep, resetWizard,
-        isCurrentStepValid, canProceedToPayment,
-    } = useCheckoutWizard(eventId);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [promoError, setPromoError] = useState<string | null>(null);
@@ -44,7 +41,7 @@ export default function CheckoutPage() {
     // Fetch event data
     const { data: eventData, isLoading: eventLoading, isError: eventError } = useQuery({
         queryKey: ['event', eventId],
-        queryFn: () => eventsApi.get(Number(eventId)),
+        queryFn: () => eventsApi.get(eventId),
         enabled: !!eventId,
         retry: 1,
     });
@@ -62,53 +59,12 @@ export default function CheckoutPage() {
 
     // Currency detection from user.delegateType
     const isThai = useMemo(() => {
-        return user?.delegateType?.startsWith('thai') ?? true;
-    }, [user?.delegateType]);
+        if (!user || !user.delegateType) return true;
+        const dt = user.delegateType.toLowerCase();
+        return dt.includes('thai') || dt.includes('pharmacist') || dt !== 'international';
+    }, [user]);
 
     const currency: 'THB' | 'USD' = isThai ? 'THB' : 'USD';
-
-    // Auto-detect addon-only mode
-    useEffect(() => {
-        if (purchases?.hasPrimaryTicket || modeParam === 'addon') {
-            updateCheckoutData({
-                isAddonOnly: true,
-                purchasedAddOns: purchases?.purchasedAddOns || [],
-            });
-        }
-    }, [purchases, modeParam, updateCheckoutData]);
-
-    // Set currency
-    useEffect(() => {
-        updateCheckoutData({ currency });
-    }, [currency, updateCheckoutData]);
-
-    // Auto-switch QR to card for USD
-    useEffect(() => {
-        if (!isThai && checkoutData.paymentMethod === 'qr') {
-            updateCheckoutData({ paymentMethod: 'card' });
-        }
-    }, [isThai, checkoutData.paymentMethod, updateCheckoutData]);
-
-    // Pre-fill user info
-    useEffect(() => {
-        if (user && isLoggedIn) {
-            updateCheckoutData({
-                firstName: user.firstName || checkoutData.firstName,
-                lastName: user.lastName || checkoutData.lastName,
-                email: user.email || checkoutData.email,
-                phone: user.phone || checkoutData.phone,
-                country: user.country || checkoutData.country,
-            });
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, isLoggedIn]);
-
-    // Redirect to login if not authenticated
-    useEffect(() => {
-        if (!authLoading && !isLoggedIn) {
-            router.push(`/login?redirect=/checkout/${eventId}`);
-        }
-    }, [authLoading, isLoggedIn, eventId, router]);
 
     // Build package and addon options from event ticket types
     const { packageOptions, addonOptions } = useMemo(() => {
@@ -139,7 +95,6 @@ export default function CheckoutPage() {
                     pkgs.push(baseOption);
                 }
             } else if (tt.category === 'addon') {
-                // Include sessions for workshop tickets
                 const addonOption: AddonOption = {
                     ...baseOption,
                     sessions: tt.sessions?.map(s => ({
@@ -157,6 +112,102 @@ export default function CheckoutPage() {
 
         return { packageOptions: pkgs, addonOptions: addons };
     }, [event?.ticketTypes, currency]);
+
+    // Step filter logic
+    const stepFilter = useCallback((step: { id: number }) => {
+        // Hide Step 2 completely if ticket is pre-selected (no add-ons for this event)
+        if (step.id === 2 && ticketParam) {
+            return false;
+        }
+        return true;
+    }, [ticketParam]);
+
+    const {
+        currentStep, checkoutData, steps, updateCheckoutData,
+        nextStep, prevStep, goToStep, resetWizard,
+        isCurrentStepValid, canProceedToPayment,
+    } = useCheckoutWizard(eventId, stepFilter);
+
+
+    // Auto-detect addon-only mode
+    useEffect(() => {
+        if (purchases?.hasPrimaryTicket || modeParam === 'addon') {
+            updateCheckoutData({
+                isAddonOnly: true,
+                purchasedAddOns: purchases?.purchasedAddOns || [],
+            });
+        }
+    }, [purchases, modeParam, updateCheckoutData]);
+
+    // Set currency
+    useEffect(() => {
+        updateCheckoutData({ currency });
+    }, [currency, updateCheckoutData]);
+
+    // Auto-switch QR to card for USD
+    useEffect(() => {
+        if (!isThai && checkoutData.paymentMethod === 'qr') {
+            updateCheckoutData({ paymentMethod: 'card' });
+        }
+    }, [isThai, checkoutData.paymentMethod, updateCheckoutData]);
+
+    // Auto-fill from query params
+    useEffect(() => {
+        const updates: any = {};
+        let hasUpdates = false;
+
+        if (ticketParam && checkoutData.selectedPackage !== ticketParam) {
+            updates.selectedPackage = ticketParam;
+            hasUpdates = true;
+        }
+        if (addonsParam) {
+            const paramAddons = addonsParam.split(',').filter(Boolean);
+            const currentAddons = [...checkoutData.selectedAddOns].sort();
+            const newAddons = [...paramAddons].sort();
+            
+            if (JSON.stringify(currentAddons) !== JSON.stringify(newAddons)) {
+                updates.selectedAddOns = paramAddons;
+                hasUpdates = true;
+            }
+        }
+        if (promoParam && checkoutData.promoCode !== promoParam) {
+            updates.promoCode = promoParam;
+            hasUpdates = true;
+        }
+
+        if (hasUpdates) {
+            updateCheckoutData(updates);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ticketParam, addonsParam, promoParam, checkoutData.selectedPackage]);
+
+    // Pre-fill user info
+    useEffect(() => {
+        if (user && isLoggedIn) {
+            updateCheckoutData({
+                firstName: user.firstName || checkoutData.firstName,
+                lastName: user.lastName || checkoutData.lastName,
+                email: user.email || checkoutData.email,
+                phone: user.phone || checkoutData.phone,
+                country: user.country || checkoutData.country,
+            });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, isLoggedIn]);
+
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!authLoading && !isLoggedIn) {
+            router.push(`/login?redirect=/checkout/${eventId}`);
+        }
+    }, [authLoading, isLoggedIn, eventId, router]);
+
+    // Auto-skip Step 2 if no add-ons and ticket is pre-selected
+    useEffect(() => {
+        if (currentStep === 2 && ticketParam && addonOptions && addonOptions.length === 0) {
+            nextStep();
+        }
+    }, [currentStep, ticketParam, addonOptions, nextStep]);
 
     // Smart back link
     const backUrl = useMemo(() => {
@@ -203,6 +254,13 @@ export default function CheckoutPage() {
         setPromoDiscountText(null);
         setPromoError(null);
     }, [updateCheckoutData]);
+
+    // Auto-apply promo if provided
+    useEffect(() => {
+        if (promoParam && checkoutData.promoCode === promoParam && !checkoutData.promoApplied && !eventLoading && event) {
+            handleApplyPromo();
+        }
+    }, [promoParam, checkoutData.promoCode, checkoutData.promoApplied, handleApplyPromo, eventLoading, event]);
 
     // Submit: save checkout data to sessionStorage and navigate to payment page
     const handleSubmit = useCallback(async () => {
@@ -280,7 +338,7 @@ export default function CheckoutPage() {
                     {/* Step Indicator */}
                     <div className="mb-8 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                         <StepIndicator
-                            steps={steps}
+                            steps={steps.map(s => (s.id === 2 && ticketParam) ? { ...s, label: 'Add-ons' } : s)}
                             currentStep={currentStep}
                             onStepClick={goToStep}
                         />
@@ -288,7 +346,7 @@ export default function CheckoutPage() {
 
                     <div className="grid lg:grid-cols-3 gap-8">
                         {/* Left: Wizard Steps */}
-                        <div className="lg:col-span-2 space-y-6">
+                        <div className={currentStep === 5 ? "lg:col-span-2 space-y-6" : "lg:col-span-3 space-y-6"}>
 
                             {/* Step 1: Personal Info */}
                             {currentStep === 1 && (
@@ -380,18 +438,20 @@ export default function CheckoutPage() {
                             {currentStep === 2 && (
                                 <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
                                     <h3 className="text-lg font-bold text-gray-900">
-                                        {checkoutData.isAddonOnly ? 'เลือก Add-on เพิ่มเติม' : 'เลือกแพ็กเกจ'}
+                                        {(checkoutData.isAddonOnly || ticketParam) ? 'เลือก Add-on เพิ่มเติม' : 'เลือกแพ็กเกจ'}
                                     </h3>
 
                                     {/* Package Selection */}
-                                    <PackageSelector
-                                        packages={packageOptions}
-                                        selectedPackage={checkoutData.selectedPackage}
-                                        onSelect={(groupName) => updateCheckoutData({ selectedPackage: groupName })}
-                                        isAddonOnly={checkoutData.isAddonOnly}
-                                        primaryTicketName={purchases?.primaryTicketName}
-                                        currency={currency}
-                                    />
+                                    {!ticketParam && (
+                                        <PackageSelector
+                                            packages={packageOptions}
+                                            selectedPackage={checkoutData.selectedPackage}
+                                            onSelect={(groupName) => updateCheckoutData({ selectedPackage: groupName })}
+                                            isAddonOnly={checkoutData.isAddonOnly}
+                                            primaryTicketName={purchases?.primaryTicketName}
+                                            currency={currency}
+                                        />
+                                    )}
 
                                     {/* Add-on Selection */}
                                     {addonOptions.length > 0 && (
@@ -496,35 +556,80 @@ export default function CheckoutPage() {
                                         >
                                             ย้อนกลับ
                                         </button>
+                                        <button
+                                            type="button"
+                                            onClick={nextStep}
+                                            disabled={!isCurrentStepValid()}
+                                            className="px-6 py-2.5 bg-[#537547] text-white font-medium rounded-lg hover:bg-[#456339] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            ขั้นตอนยืนยัน
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 5: Final Review */}
+                            {currentStep === 5 && (
+                                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+                                    <div className="text-center space-y-2">
+                                        <h3 className="text-xl font-bold text-gray-900">ตรวจสอบความถูกต้อง</h3>
+                                        <p className="text-gray-500 text-sm">กรุณาตรวจสอบข้อมูลการจองของคุณก่อนดำเนินการชำระเงิน</p>
+                                    </div>
+
+                                    <div className="p-4 bg-gray-50 rounded-xl space-y-3">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">ชื่อ-นามสกุล</span>
+                                            <span className="font-medium text-gray-900">{checkoutData.firstName} {checkoutData.lastName}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">อีเมล</span>
+                                            <span className="font-medium text-gray-900">{checkoutData.email}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">วิธีชำระเงิน</span>
+                                            <span className="font-medium text-gray-900 capitalize">{checkoutData.paymentMethod === 'qr' ? 'Thai QR Payment' : 'Credit / Debit Card'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-between pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={prevStep}
+                                            className="px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                                        >
+                                            แก้ไขข้อมูล
+                                        </button>
                                     </div>
                                 </div>
                             )}
                         </div>
 
                         {/* Right: Order Summary */}
-                        <div className="lg:col-span-1">
-                            <OrderSummary
-                                eventName={event.eventName}
-                                selectedPackage={checkoutData.selectedPackage}
-                                selectedAddOns={checkoutData.selectedAddOns}
-                                packages={packageOptions}
-                                addons={addonOptions}
-                                currency={currency}
-                                paymentMethod={checkoutData.paymentMethod}
-                                isAddonOnly={checkoutData.isAddonOnly}
-                                promoCode={checkoutData.promoCode}
-                                promoApplied={checkoutData.promoApplied}
-                                onPromoCodeChange={(code) => updateCheckoutData({ promoCode: code })}
-                                onApplyPromo={handleApplyPromo}
-                                onRemovePromo={handleRemovePromo}
-                                promoError={promoError}
-                                promoDiscountAmount={promoDiscountAmount}
-                                promoDiscountText={promoDiscountText}
-                                onSubmit={handleSubmit}
-                                isSubmitting={isSubmitting}
-                                canSubmit={canProceedToPayment()}
-                            />
-                        </div>
+                        {currentStep === 5 && (
+                            <div className="lg:col-span-1">
+                                <OrderSummary
+                                    eventName={event.eventName}
+                                    selectedPackage={checkoutData.selectedPackage}
+                                    selectedAddOns={checkoutData.selectedAddOns}
+                                    packages={packageOptions}
+                                    addons={addonOptions}
+                                    currency={currency}
+                                    paymentMethod={checkoutData.paymentMethod}
+                                    isAddonOnly={checkoutData.isAddonOnly}
+                                    promoCode={checkoutData.promoCode}
+                                    promoApplied={checkoutData.promoApplied}
+                                    onPromoCodeChange={(code) => updateCheckoutData({ promoCode: code })}
+                                    onApplyPromo={handleApplyPromo}
+                                    onRemovePromo={handleRemovePromo}
+                                    promoError={promoError}
+                                    promoDiscountAmount={promoDiscountAmount}
+                                    promoDiscountText={promoDiscountText}
+                                    onSubmit={handleSubmit}
+                                    isSubmitting={isSubmitting}
+                                    canSubmit={canProceedToPayment()}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
