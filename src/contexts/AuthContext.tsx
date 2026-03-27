@@ -48,10 +48,10 @@ async function verifyTokenWithApi(tokenToVerify: string): Promise<User | null> {
             return {
                 id: 1,
                 email: payload.email || 'mock@example.com',
-                firstName: 'Pharmacist',
-                lastName: 'Sample',
-                role: 'member',
-                name: 'Pharmacist Sample',
+                firstName: payload.firstName || 'Pharmacist',
+                lastName: payload.lastName || 'Sample',
+                role: payload.role || 'member',
+                name: `${payload.firstName || 'Pharmacist'} ${payload.lastName || 'Sample'}`.trim(),
             };
         } catch (e) {
             console.error('Failed to parse mock token:', e);
@@ -89,14 +89,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                // Try localStorage (OTT SSO handles cross-app auth via /auth/sso callback)
-                const resolvedToken = localStorage.getItem('token');
+                // 1. Check URL parameters for SSO/Token (Auto-login)
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlToken = urlParams.get('token') || urlParams.get('sso');
+
+                let resolvedToken = urlToken || localStorage.getItem('token');
+
+                // DEFAULT MOCK LOGIN: If no token is found, use a default mock token
+                if (!resolvedToken) {
+                    resolvedToken = 'mock-jwt-token-eyJlbWFpbCI6InBocmlzMjAyNkBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6IlNoYXJlZCIsImxhc3ROYW1lIjoiTW9ja3VwIn0=';
+                }
 
                 if (!resolvedToken || isTokenExpired(resolvedToken)) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    setIsLoading(false);
-                    return;
+                    if (!urlToken && !resolvedToken.startsWith('mock-')) { // Only clear if we didn't just try to login via URL or Mock
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                    }
+                    if (!resolvedToken.startsWith('mock-')) {
+                        setIsLoading(false);
+                        return;
+                    }
                 }
 
                 // Verify token with API
@@ -107,6 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(profileUser);
                     localStorage.setItem('token', resolvedToken);
                     localStorage.setItem('user', JSON.stringify(profileUser));
+
+                    // If we logged in via URL, clean up the URL
+                    if (urlToken) {
+                        const newUrl = window.location.pathname + window.location.search.replace(/[?&](token|sso)=[^&]+/, '').replace(/^&/, '?');
+                        window.history.replaceState({}, '', newUrl);
+                    }
                 } else {
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
